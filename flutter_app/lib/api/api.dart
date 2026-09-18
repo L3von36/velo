@@ -69,7 +69,12 @@ class Api {
       final res = await _sb.auth.signUp(
         email: emailForPhone(phone),
         password: '${payload['password'] ?? ''}',
-        data: {'name': payload['name'], 'phone': phone},
+        data: {
+          'name': payload['name'],
+          'phone': phone,
+          // Kept so me() can self-heal if app_create_shop ever fails here.
+          'shop_name': payload['shop_name'],
+        },
       );
       if (res.session == null) {
         throw ApiException('Account created — please verify and log in.');
@@ -98,16 +103,41 @@ class Api {
   }
 
   Future<Map<String, dynamic>> _myStaff() async {
+    final uid = _sb.auth.currentUser!.id;
     final rows = await _sb
         .from('staff')
         .select('*, shop:shops(*)')
-        .eq('user_id', _sb.auth.currentUser!.id)
+        .eq('user_id', uid)
         .eq('active', true)
         .limit(1);
-    if ((rows as List).isEmpty) {
+    if ((rows as List).isNotEmpty) {
+      return (rows.first as Map).cast<String, dynamic>();
+    }
+    // Self-heal: the auth user exists but shop creation never completed
+    // (e.g. the network dropped right after signUp). Recreate the shop from
+    // the stored user metadata so the account can never get stuck, instead
+    // of forcing the user to re-signup (which would 422 "already exists").
+    final u = _sb.auth.currentUser!;
+    final meta = u.userMetadata ?? const {};
+    final md = meta.cast<String, dynamic>();
+    await _sb.rpc('app_create_shop', params: {
+      'p_shop_name':
+          (md['shop_name'] ?? md['name'] ?? 'My Shop').toString().isEmpty
+              ? 'My Shop'
+              : '${md['shop_name'] ?? md['name'] ?? 'My Shop'}',
+      'p_business_type': 'general',
+      'p_phone': '${md['phone'] ?? ''}',
+    });
+    final retry = await _sb
+        .from('staff')
+        .select('*, shop:shops(*)')
+        .eq('user_id', uid)
+        .eq('active', true)
+        .limit(1);
+    if ((retry as List).isEmpty) {
       throw ApiException('No shop found for this account.');
     }
-    return (rows.first as Map).cast<String, dynamic>();
+    return (retry.first as Map).cast<String, dynamic>();
   }
 
   Future<Map<String, dynamic>> me() async {

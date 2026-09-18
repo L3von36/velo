@@ -12,7 +12,10 @@ import 'signup_screen.dart';
 /// A3 — phone-first login (matches how Ethiopians register for services).
 /// v2: branded gradient panel on wide screens, card-less mobile layout.
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.initialPhone});
+
+  /// Pre-filled phone (e.g. arriving from signup "already exists" shortcut).
+  final String? initialPhone;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -29,6 +32,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialPhone != null) {
+      _phone.text = widget.initialPhone!;
+    }
     _loadDemos();
   }
 

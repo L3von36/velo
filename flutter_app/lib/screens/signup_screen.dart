@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app.dart';
+import '../api/api_client.dart';
 import '../providers/session.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
@@ -24,7 +25,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool _terms = false;
   bool _obscure = true;
   bool _loading = false;
-  String? _error;
+  ApiException? _error;
 
   bool get _valid =>
       _name.text.trim().length >= 2 &&
@@ -36,7 +37,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Future<void> _submit() async {
     final norm = EthPhone.normalize(_phone.text);
     if (norm == null) {
-      setState(() => _error = 'Enter a valid Ethiopian phone number (+251 9XX XXX XXX).');
+      setState(() => _error = ApiException(
+          'Enter a valid Ethiopian phone number (+251 9XX XXX XXX).'));
       return;
     }
     setState(() {
@@ -53,10 +55,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         'business_type': 'general',
       });
     } catch (e) {
-      setState(() => _error = e.toString().replaceFirst('ApiException: ', ''));
+      final err =
+          e is ApiException ? e : ApiException(e.toString());
+      setState(() => _error = err);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _goLogin() {
+    Navigator.of(context).pushReplacement(MaterialPageRoute(
+        builder: (_) => LoginScreen(initialPhone: EthPhone.normalize(_phone.text))));
   }
 
   @override
@@ -87,8 +96,44 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         color: theme.colorScheme.errorContainer,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Text(_error!,
-                          style: TextStyle(color: theme.colorScheme.onErrorContainer, fontSize: 13)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.error_outline_rounded,
+                                  size: 18,
+                                  color: theme.colorScheme.onErrorContainer),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(_error!.message,
+                                    style: TextStyle(
+                                        color:
+                                            theme.colorScheme.onErrorContainer,
+                                        fontSize: 13)),
+                              ),
+                            ],
+                          ),
+                          // Duplicate account: give the user a direct path
+                          // to log in with the number they just typed.
+                          if (_error!.code == 'user_already_exists') ...[
+                            const SizedBox(height: 10),
+                            FilledButton.tonalIcon(
+                              onPressed: _goLogin,
+                              style: FilledButton.styleFrom(
+                                backgroundColor:
+                                    theme.colorScheme.onErrorContainer,
+                                foregroundColor:
+                                    theme.colorScheme.errorContainer,
+                                minimumSize: const Size.fromHeight(38),
+                              ),
+                              icon: const Icon(Icons.login_rounded, size: 18),
+                              label: Text(
+                                  '${t(context).haveAccount} ${t(context).login}'),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 12),
                   ],

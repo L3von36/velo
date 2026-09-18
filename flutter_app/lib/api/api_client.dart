@@ -3,10 +3,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Typed exception surfaced to UI layer.
 class ApiException implements Exception {
-  ApiException(this.message, {this.statusCode, this.fieldErrors});
+  ApiException(this.message, {this.statusCode, this.fieldErrors, this.code});
   final String message;
   final int? statusCode;
   final Map<String, dynamic>? fieldErrors;
+
+  /// Stable machine-readable code the UI can branch on
+  /// (e.g. 'already_exists', 'weak_password', 'invalid_credentials').
+  final String? code;
 
   @override
   String toString() => message;
@@ -30,18 +34,41 @@ ApiException mapSupabaseError(Object e) {
   if (e is AuthException) {
     final m = e.message.toLowerCase();
     var msg = e.message;
-    if (m.contains('invalid login')) {
-      msg = 'Wrong phone number or password.';
-    } else if (m.contains('already registered')) {
-      msg = 'An account with this phone already exists. Try logging in.';
-    } else if (m.contains('password should be')) {
+    var code = e.code;
+    // Map by stable error_code first (Supabase auth error codes), then by
+    // message text as a fallback for older server responses.
+    if (e.code == 'user_already_exists' ||
+        e.code == 'email_exists' ||
+        m.contains('already registered') ||
+        m.contains('already exists')) {
+      msg = 'This phone number already has an account. Try logging in instead.';
+      code = 'user_already_exists';
+    } else if (e.code == 'weak_password' ||
+        m.contains('password should be')) {
       msg = 'Password should be at least 6 characters.';
+      code = 'weak_password';
+    } else if (e.code == 'invalid_credentials' || m.contains('invalid login')) {
+      msg = 'Wrong phone number or password.';
+      code = 'invalid_credentials';
+    } else if (e.code == 'signup_disabled') {
+      msg = 'New signups are temporarily unavailable. Please try again later.';
+      code = 'signup_disabled';
+    } else if (e.statusCode == '429' || m.contains('rate limit')) {
+      msg = 'Too many attempts. Please wait a moment and try again.';
+      code = 'over_request_rate_limit';
+    } else if (m.contains('email address is invalid') ||
+        m.contains('invalid email') ||
+        e.code == 'validation_failed') {
+      msg = 'That phone number looks invalid. Use the format 09XX XXX XXX.';
+      code = 'validation_failed';
     }
-    return ApiException(msg, statusCode: e.statusCode != null ? int.tryParse(e.statusCode!) ?? 400 : 400);
+    return ApiException(msg,
+        code: code,
+        statusCode: e.statusCode != null ? int.tryParse(e.statusCode!) ?? 400 : 400);
   }
   if (e is FormatException) return ApiException(e.message);
   return ApiException('Network error — check your connection.',
-      statusCode: 0);
+      statusCode: 0, code: 'network');
 }
 
 /// Session/token compatibility layer for the Supabase backend.
