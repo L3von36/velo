@@ -376,9 +376,14 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet> {
             const SizedBox(height: 10),
             TextField(controller: note, decoration: InputDecoration(labelText: t(context).note)),
             const SizedBox(height: 14),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(t(context).confirm),
+            // Confirm stays disabled until an amount is typed — tapping it
+            // with an empty amount used to close the sheet with no feedback.
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: amount,
+              builder: (ctx, v, _) => FilledButton(
+                onPressed: v.text.trim().isEmpty ? null : () => Navigator.pop(ctx, true),
+                child: Text(t(context).confirm),
+              ),
             ),
           ],
         ),
