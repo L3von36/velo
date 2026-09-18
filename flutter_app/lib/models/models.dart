@@ -1,5 +1,10 @@
-/// Typed models mirroring the Django API shapes (snake_case kept via fromJson).
+/// Typed models mirroring the backend API shapes (snake_case kept via fromJson).
 library;
+
+/// int fields arrive as JSON numbers, but PostgREST may serialize some
+/// numerics as strings — parse both defensively.
+int _asInt(Object? v, [int def = 0]) =>
+    v is int ? v : int.tryParse('$v') ?? def;
 
 class BusinessTypeConfig {
   BusinessTypeConfig({
@@ -208,8 +213,8 @@ class CatalogItem {
         category: j['category'] == null ? null : int.tryParse('${j['category']}'),
         categoryName: j['category_name'],
         description: j['description'] ?? '',
-        stockQty: (j['stock_qty'] ?? 0) is num ? (j['stock_qty'] as num).toInt() : 0,
-        lowStockThreshold: (j['low_stock_threshold'] ?? 5) is num ? (j['low_stock_threshold'] as num).toInt() : 5,
+        stockQty: _asInt(j['stock_qty']),
+        lowStockThreshold: _asInt(j['low_stock_threshold'], 5),
         barcode: j['barcode'] ?? '',
         unit: (j['unit'] ?? 'pc').toString(),
         durationMinutes: j['duration_minutes'] == null ? null : int.tryParse('${j['duration_minutes']}'),

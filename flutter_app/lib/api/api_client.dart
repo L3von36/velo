@@ -1,6 +1,5 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Typed exception surfaced to UI layer.
 class ApiException implements Exception {
@@ -13,168 +12,72 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
-/// Dio-based API client with JWT auth + token refresh.
+/// Maps Supabase/Postgrest errors to the friendly [ApiException].
+ApiException mapSupabaseError(Object e) {
+  if (e is ApiException) return e;
+  if (e is PostgrestException) {
+    // friendly messages for common constraint/auth failures
+    var msg = e.message;
+    if (e.code == '23505' || msg.contains('duplicate key')) {
+      msg = 'That record already exists.';
+    } else if (e.code == '42501' || msg.contains('row-level security')) {
+      msg = 'You do not have permission for this action.';
+    } else if (e.code == 'PGRST301' || msg.contains('JWT')) {
+      msg = 'Session expired. Please sign in again.';
+    }
+    return ApiException(msg, statusCode: int.tryParse(e.code ?? '') ?? 400);
+  }
+  if (e is AuthException) {
+    final m = e.message.toLowerCase();
+    var msg = e.message;
+    if (m.contains('invalid login')) {
+      msg = 'Wrong phone number or password.';
+    } else if (m.contains('already registered')) {
+      msg = 'An account with this phone already exists. Try logging in.';
+    } else if (m.contains('password should be')) {
+      msg = 'Password should be at least 6 characters.';
+    }
+    return ApiException(msg, statusCode: e.statusCode != null ? int.tryParse(e.statusCode!) ?? 400 : 400);
+  }
+  if (e is FormatException) return ApiException(e.message);
+  return ApiException('Network error — check your connection.',
+      statusCode: 0);
+}
+
+/// Session/token compatibility layer for the Supabase backend.
 ///
-/// Base URL strategy:
-///  - Web: same-origin `/api` (proxied by the host server in the sandbox).
-///  - Native: configurable server URL persisted in SharedPreferences.
+/// The old Dio/JWT client stored access+refresh tokens manually; Supabase
+/// manages session persistence itself, so these methods either no-op or
+/// delegate to the Supabase auth session. Screens and providers keep using
+/// the same call sites (loadTokens / hasTokens / clearTokens).
 class ApiClient {
-  ApiClient._() {
-    _dio = Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 12),
-      receiveTimeout: const Duration(seconds: 20),
-      headers: {'Content-Type': 'application/json'},
-    ));
-    _dio.interceptors.add(_authInterceptor());
-  }
+  ApiClient._();
   static final ApiClient I = ApiClient._();
-  late final Dio _dio;
-  String? _accessToken;
-  String? _refreshToken;
 
-  static const _kServer = 'server_url';
-  static const _kAccess = 'access_token';
-  static const _kRefresh = 'refresh_token';
+  SupabaseClient get _sb => Supabase.instance.client;
 
-  String _baseUrl(String server) {
-    if (kIsWeb) return '$server/api';
-    return server.endsWith('/api') ? server : '$server/api';
-  }
-
-  Future<String> get serverUrl async {
-    final sp = await SharedPreferences.getInstance();
-    return sp.getString(_kServer) ??
-        (kIsWeb ? '' : 'http://10.0.2.2:8000'); // Android emulator → host
-  }
-
-  Future<void> setServerUrl(String url) async {
-    final sp = await SharedPreferences.getInstance();
-    await sp.setString(_kServer, url.endsWith('/api') ? url.substring(0, url.length - 4) : url);
-  }
+  bool get hasTokens => _sb.auth.currentSession != null;
 
   Future<void> loadTokens() async {
-    final sp = await SharedPreferences.getInstance();
-    _accessToken = sp.getString(_kAccess);
-    _refreshToken = sp.getString(_kRefresh);
+    // Supabase restores the persisted session during Supabase.initialize().
+    // Give the recovery a beat on cold web boots.
+    for (var i = 0; i < 12 && _sb.auth.currentSession == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
   }
 
   Future<void> saveTokens(String access, String refresh) async {
-    _accessToken = access;
-    _refreshToken = refresh;
-    final sp = await SharedPreferences.getInstance();
-    await sp.setString(_kAccess, access);
-    await sp.setString(_kRefresh, refresh);
+    // no-op — kept for call-site compatibility
   }
-
-  bool get hasTokens => _accessToken != null;
 
   Future<void> clearTokens() async {
-    _accessToken = null;
-    _refreshToken = null;
-    final sp = await SharedPreferences.getInstance();
-    await sp.remove(_kAccess);
-    await sp.remove(_kRefresh);
-  }
-
-  Interceptor _authInterceptor() => InterceptorsWrapper(
-        onRequest: (options, handler) {
-          if (_accessToken != null) {
-            options.headers['Authorization'] = 'Bearer $_accessToken';
-          }
-          return handler.next(options);
-        },
-        onError: (e, handler) async {
-          // Try a single refresh on 401.
-          if (e.response?.statusCode == 401 && _refreshToken != null) {
-            final ok = await _tryRefresh();
-            if (ok) {
-              try {
-                final opts = e.requestOptions;
-                opts.headers['Authorization'] = 'Bearer $_accessToken';
-                final resp = await _dio.fetch(opts);
-                return handler.resolve(resp);
-              } catch (_) {/* fall through */}
-            }
-          }
-          handler.next(e);
-        },
-      );
-
-  Future<bool> _tryRefresh() async {
     try {
-      final server = await serverUrl;
-      final resp = await Dio(BaseOptions())
-          .post('${_baseUrl(server)}/auth/refresh',
-              data: {'refresh': _refreshToken});
-      await saveTokens(resp.data['access'], resp.data['refresh'] ?? _refreshToken!);
-      return true;
-    } catch (_) {
-      return false;
-    }
+      await _sb.auth.signOut();
+    } catch (_) {}
   }
 
-  Future<Map<String, dynamic>> get(String path,
-      {Map<String, dynamic>? query}) async {
-    try {
-      final server = await serverUrl;
-      final r = await _dio.get('${_baseUrl(server)}$path', queryParameters: query);
-      return _asMap(r.data);
-    } on DioException catch (e) {
-      throw _toApiException(e);
-    }
-  }
-
-  Future<Map<String, dynamic>> post(String path, {Object? data}) async {
-    try {
-      final server = await serverUrl;
-      final r = await _dio.post('${_baseUrl(server)}$path', data: data);
-      return _asMap(r.data);
-    } on DioException catch (e) {
-      throw _toApiException(e);
-    }
-  }
-
-  Future<Map<String, dynamic>> patch(String path, {Object? data}) async {
-    try {
-      final server = await serverUrl;
-      final r = await _dio.patch('${_baseUrl(server)}$path', data: data);
-      return _asMap(r.data);
-    } on DioException catch (e) {
-      throw _toApiException(e);
-    }
-  }
-
-  Future<Map<String, dynamic>> delete(String path) async {
-    try {
-      final server = await serverUrl;
-      final r = await _dio.delete('${_baseUrl(server)}$path');
-      return _asMap(r.data);
-    } on DioException catch (e) {
-      throw _toApiException(e);
-    }
-  }
-
-  Map<String, dynamic> _asMap(dynamic d) =>
-      d is Map<String, dynamic> ? d : <String, dynamic>{};
-
-  ApiException _toApiException(DioException e) {
-    final resp = e.response;
-    if (resp == null) {
-      return ApiException('Cannot reach the server. Check your connection.');
-    }
-    final data = resp.data;
-    Map<String, dynamic>? fields;
-    String message = 'Request failed (${resp.statusCode})';
-    if (data is Map) {
-      final m = Map<String, dynamic>.from(data);
-      if (m['detail'] is String) {
-        message = m['detail'] as String;
-      } else if (m.isNotEmpty) {
-        fields = m.map((k, v) => MapEntry(k, v.toString()));
-        final first = m.entries.first;
-        message = '${first.key}: ${first.value}'.replaceAll(RegExp(r'[\[\]{}]'), '');
-      }
-    }
-    return ApiException(message, statusCode: resp.statusCode, fieldErrors: fields);
+  // keep debug import used (web boots log connection issues)
+  void debugLog(String msg) {
+    if (kDebugMode) debugPrint('[velo] $msg');
   }
 }

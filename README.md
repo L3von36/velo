@@ -24,25 +24,56 @@
 - **Staff** — owner/manager/cashier roles, capability matrix, activate/deactivate
 - **Expenses** — categorized expenses, month grouping
 - **Reports** — sales trend, best sellers, staff performance, P&L, debtors, method breakdown
-- **Offline-aware** — connectivity banner, cart persistence, server URL configurable in-app
+- **Offline-aware** — connectivity banner, cart persistence, cloud backend (Supabase Postgres/Auth)
 
 ## Repository layout
 
 ```
 velo/
-├── backend/            # Django + DRF API (multi-tenant)
+├── backend/            # Django + DRF API (multi-tenant) + Supabase SQL
 │   ├── config/         #   settings, urls, wsgi
 │   ├── core/           #   models, serializers, views, tenancy, permissions
 │   │   └── management/commands/seed_demo.py
+│   ├── supabase/       #   schema.sql + seed.sql — hosted Postgres edition
 │   └── requirements.txt
-├── flutter_app/        # Velo mobile/desktop/web client
-│   ├── lib/            #   api, models, providers (Riverpod), screens, l10n, theme
+├── flutter_app/        # Velo mobile/desktop/web client (Supabase backend)
+│   ├── lib/            #   api, config, models, providers (Riverpod), screens, l10n, theme
 │   ├── android/ ios/ web/ windows/
 │   └── assets/icon/    # Velo launcher icon source
-└── .github/workflows/  # CI: APK, iOS, Web (Pages), Windows builds
+└── .github/workflows/  # CI: APK, iOS, Web (Pages), Windows builds + Releases
 ```
 
-## Quick start — backend
+## Backend: Supabase (hosted Postgres + Auth)
+
+The Flutter client talks **directly to Supabase** — no server to host. The
+web build on GitHub Pages, the Android APK and the Windows EXE all work
+out of the box against the hosted database.
+
+- **Data**: 15 Postgres tables (shops, staff, items, variants, customers,
+  sales, sale_items, sale_payments, append-only `ledger_entries`, expenses,
+  held_sales, stock_movements, ...).
+- **Multi-tenancy**: Row Level Security on every table via
+  `current_shop_id()` — each signed-in user can only ever touch their own
+  shop's rows. Cross-tenant access returns empty results (404-not-403).
+- **Business logic**: atomic Postgres functions (`app_checkout`,
+  `app_refund_sale`, `app_stock_adjust`, `app_add_ledger`, `app_dashboard`,
+  `app_sales_report`, `app_pnl`, `app_debtors`, ...) mirror the Django
+  logic: server-side pricing, stock deduction + movements, credit →
+  append-only customer ledger, Telebirr/CBE `pending_verification`.
+- **Auth**: phone-first. `0911000001` signs in as `0911000001@velo.app`
+  (synthetic email — no SMS provider needed). Sessions persist + refresh
+  automatically via `supabase_flutter`.
+
+Schema lives in `backend/supabase/`:
+
+```bash
+psql "$DATABASE_URL" -f backend/supabase/schema.sql   # tables, RLS, RPCs
+psql "$DATABASE_URL" -f backend/supabase/seed.sql     # demo tenants + data
+```
+
+## Quick start — legacy Django backend (optional, self-hosted)
+
+The Django API remains available for self-hosting / offline server needs:
 
 ```bash
 cd backend
@@ -68,10 +99,12 @@ API base: `http://localhost:8000/api/` · JWT: `POST /api/auth/token/` `{phone, 
 ```bash
 cd flutter_app
 flutter pub get
-flutter run                # Android emulator reaches the API via 10.0.2.2:8000
+flutter run                # works immediately — Supabase URL is embedded
 ```
 
-On real devices, open **Settings → Server URL** in the app and point it at your machine's LAN IP (e.g. `http://192.168.1.10:8000/api`).
+No server URL configuration needed: the Supabase project URL + public anon
+key live in `lib/config/supabase_config.dart`, and all isolation is enforced
+server-side by RLS.
 
 ## Releases & signing
 
