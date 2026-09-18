@@ -7,6 +7,7 @@ import '../../api/api.dart';
 import '../../models/models.dart';
 import '../../providers/session.dart';
 import '../../providers/shop.dart';
+import '../../theme/app_theme.dart' show AppTheme;
 import '../../utils/format.dart';
 import '../../widgets/common.dart';
 import 'checkout_sheet.dart';
@@ -360,55 +361,114 @@ class _ItemTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final out = item.requiresStock && !item.isService && item.stockQty <= 0;
+    final lowStock = item.requiresStock &&
+        !item.isService &&
+        !out &&
+        item.stockQty <= item.lowStockThreshold;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: out ? null : onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: out
+            ? Stack(
+                fit: StackFit.expand,
                 children: [
-                  Icon(
-                    item.isService ? Icons.spa_rounded : Icons.inventory_2_rounded,
-                    size: 16,
-                    color: theme.colorScheme.primary,
+                  Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: _tileContent(theme, lowStock),
                   ),
-                  const Spacer(),
-                  if (item.requiresStock && !item.isService)
-                    Text(
-                      out
-                          ? t(context).outOfStock
-                          : '${item.stockQty}${item.unit == 'pc' ? '' : ' ${item.unit}'}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: out
-                            ? theme.colorScheme.error
-                            : item.stockQty <= item.lowStockThreshold
-                                ? const Color(0xFFE8A200)
-                                : theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
+                  Positioned.fill(
+                    child: ColoredBox(
+                      color: theme.colorScheme.surface.withValues(alpha: 0.72),
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.error
+                                .withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(t(context).outOfStock,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.error,
+                                  fontWeight: FontWeight.w700)),
+                        ),
                       ),
                     ),
+                  ),
                 ],
-              ),
-              const Spacer(),
-              Text(item.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              Text(
-                Money.etb(item.price),
-                style: theme.textTheme.labelLarge?.copyWith(
-                    color: theme.colorScheme.primary, fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-        ),
+              )
+            : Padding(
+                padding: const EdgeInsets.all(10),
+                child: _tileContent(theme, lowStock)),
       ),
+    );
+  }
+
+  Widget _tileContent(ThemeData theme, bool lowStock) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: (item.isService
+                        ? theme.colorScheme.tertiary
+                        : theme.colorScheme.primary)
+                    .withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                item.isService ? Icons.spa_rounded : Icons.inventory_2_rounded,
+                size: 15,
+                color: item.isService
+                    ? theme.colorScheme.tertiary
+                    : theme.colorScheme.primary,
+              ),
+            ),
+            const Spacer(),
+            if (item.requiresStock && !item.isService)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: lowStock
+                      ? AppTheme.warning.withValues(alpha: 0.12)
+                      : theme.colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${item.stockQty}${item.unit == 'pc' ? '' : ' ${item.unit}'}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontSize: 10,
+                    color: lowStock
+                        ? AppTheme.warning
+                        : theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const Spacer(),
+        Text(item.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(fontWeight: FontWeight.w600, height: 1.25)),
+        const SizedBox(height: 5),
+        Text(
+          Money.etb(item.price),
+          style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2),
+        ),
+      ],
     );
   }
 }
@@ -810,17 +870,18 @@ class _QtyBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(9),
       child: Container(
-        width: 30,
-        height: 30,
+        width: 32,
+        height: 32,
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(8),
+          color: theme.colorScheme.primary.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(9),
         ),
-        child: Icon(icon, size: 18),
+        child: Icon(icon, size: 18, color: theme.colorScheme.primary),
       ),
     );
   }
@@ -862,52 +923,81 @@ class _MobileCartBar extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Material(
-        elevation: 8,
-        color: theme.colorScheme.surface,
+        elevation: 10,
+        shadowColor: Colors.black26,
+        color: theme.colorScheme.surfaceContainerLowest,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
             child: Row(
               children: [
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    const Icon(Icons.shopping_cart_rounded, size: 26),
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.09),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.shopping_cart_rounded,
+                          size: 22, color: theme.colorScheme.primary),
+                    ),
                     Positioned(
-                      right: -8,
+                      right: -6,
                       top: -6,
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                            color: theme.colorScheme.primary, shape: BoxShape.circle),
+                            color: theme.colorScheme.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: theme.colorScheme.surfaceContainerLowest,
+                                width: 1.5)),
                         child: Text(
                           '${cart.itemCount}',
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                              color: theme.colorScheme.onPrimary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('${t(context).total}: ${Money.etb(cart.total)}',
-                          style: theme.textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w800)),
+                      Text(Money.etb(cart.total),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3)),
                       if (cart.customerName != null)
                         Text(cart.customerName!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelSmall),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant)),
                     ],
                   ),
                 ),
-                FilledButton(onPressed: onTap, child: Text(t(context).charge)),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 44),
+                  ),
+                  onPressed: onTap,
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                  label: Text(t(context).charge),
+                ),
               ],
             ),
           ),

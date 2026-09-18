@@ -7,7 +7,7 @@ import 'screens/language_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding/onboarding_wizard.dart';
 import 'screens/shell/home_shell.dart';
-import 'theme/app_theme.dart';
+import 'widgets/common.dart';
 
 /// Routes by session phase (A1 splash behavior: instant, no network wait).
 class RootRouter extends ConsumerWidget {
@@ -43,34 +43,52 @@ class _Splash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppTheme.seed,
-                borderRadius: BorderRadius.circular(20),
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFF2FBF5), Color(0xFFE8F5EC)],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0E7A3D).withValues(alpha: 0.18),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: const BrandMark(size: 84, radius: 24),
               ),
-              child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 40),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Velo',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 24),
-            const SizedBox(
-              width: 26,
-              height: 26,
-              child: CircularProgressIndicator(strokeWidth: 2.5),
-            ),
-          ],
+              const SizedBox(height: 18),
+              Text('Velo',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800, letterSpacing: -0.8)),
+              const SizedBox(height: 4),
+              Text(t(context).tagline,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant)),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: 26,
+                height: 26,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2.5, color: theme.colorScheme.primary),
+              ),
+            ],
+          ),
         ),
       ),
     );

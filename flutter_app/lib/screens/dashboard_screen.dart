@@ -5,6 +5,7 @@ import '../app.dart';
 import '../api/api.dart';
 import '../models/models.dart';
 import '../providers/session.dart';
+import '../theme/app_theme.dart' show AppTheme;
 import '../utils/format.dart';
 import '../widgets/common.dart';
 import 'catalog/catalog_screen.dart';
@@ -12,6 +13,7 @@ import 'pos/pos_screen.dart';
 import 'reports/reports_hub.dart';
 
 /// B1 owner/manager dashboard + B2 cashier variant (role decides content).
+/// v2: hero KPI gradient card, refined stat grid, ranked best-sellers.
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
@@ -35,15 +37,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            Text(session?.tenant?.name ?? 'Velo',
-                style: Theme.of(context).textTheme.titleMedium),
-            Text(
-              '${session?.user?.name ?? ''} · ${session?.user?.role ?? ''}',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+            const BrandMark(size: 40, radius: 12),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(session?.tenant?.name ?? 'Velo',
+                    style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  '${session?.user?.name ?? ''} · ${session?.user?.role ?? ''}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              ],
             ),
           ],
         ),
@@ -53,6 +61,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             onPressed: () => _goToPos(),
             icon: const Icon(Icons.point_of_sale_rounded),
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: isStaffRole ? _CashierHome(session: session) : _OwnerDashboard(session: session),
@@ -60,8 +69,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _goToPos() {
-    // Shell nav is index-1 (Sell) — flip index via a simple route trick:
-    // The shell owns the index; simplest robust approach: open POS full-screen.
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const PosScreen(standalone: true)),
     );
@@ -91,14 +98,7 @@ class _OwnerDashboard extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorRetry(message: '$e', onRetry: () => ref.invalidate(dashboardDataProvider)),
         data: (d) {
-          final cards = <Widget>[
-            StatCard(
-              label: t(context).todaySales,
-              value: Money.etb(d.todayTotal),
-              icon: Icons.today_rounded,
-              trendPct: d.trendPct,
-              money: true,
-            ),
+          final statCards = <Widget>[
             StatCard(
               label: t(context).weekSales,
               value: Money.etb(d.weekTotal),
@@ -115,17 +115,31 @@ class _OwnerDashboard extends ConsumerWidget {
                 label: t(context).lowStock,
                 value: '${d.lowStockCount}',
                 icon: Icons.warning_amber_rounded,
-                color: const Color(0xFFB3261E),
+                color: AppTheme.danger,
               ),
           ];
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             children: [
-              // Quick actions (B1).
+              // ── Hero KPI — today's sales on the brand gradient. ────────
+              KpiHeroCard(
+                title: t(context).todaySales,
+                value: Money.etb(d.todayTotal),
+                trendPct: d.trendPct,
+                subtitle:
+                    '${d.todayCount} ${t(context).transactions.toLowerCase()}',
+                icon: Icons.today_rounded,
+                onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ReportsHub(standalone: true))),
+              ),
+              const SizedBox(height: 14),
+
+              // ── Quick actions (B1). ────────────────────────────────────
               Row(
                 children: [
                   Expanded(
+                    flex: 2,
                     child: FilledButton.icon(
                       onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                           builder: (_) => const PosScreen(standalone: true))),
@@ -135,6 +149,7 @@ class _OwnerDashboard extends ConsumerWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
+                    flex: 2,
                     child: OutlinedButton.icon(
                       onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                           builder: (_) => CatalogScreen(
@@ -149,6 +164,7 @@ class _OwnerDashboard extends ConsumerWidget {
                   if (canViewReports && width > 480) ...[
                     const SizedBox(width: 10),
                     Expanded(
+                      flex: 2,
                       child: OutlinedButton.icon(
                         onPressed: () => Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => const ReportsHub(standalone: true))),
@@ -159,30 +175,32 @@ class _OwnerDashboard extends ConsumerWidget {
                   ],
                 ],
               ),
-              const SizedBox(height: 18),
-              Text(t(context).todaySales, style: theme.textTheme.titleMedium),
-              const SizedBox(height: 10),
-              // Stat grid responsive: 2 cols mobile, 4 cols wide.
+              const SizedBox(height: 20),
+
+              // ── Secondary stats — 2 cols mobile, 3 cols wide. ──────────
               GridView.count(
-                crossAxisCount: width > 1000 ? 4 : 2,
+                crossAxisCount: width > 1000 ? 3 : 2,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
-                childAspectRatio: width > 1000 ? 2.4 : 1.7,
-                children: cards,
+                childAspectRatio: width > 1000 ? 2.6 : 1.75,
+                children: statCards,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 22),
               SectionHeader(t(context).topItemsToday),
               if (d.topItems.isEmpty)
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(22),
+                    padding: const EdgeInsets.all(24),
                     child: Column(
                       children: [
+                        Icon(Icons.storefront_rounded,
+                            size: 34, color: theme.colorScheme.outline),
+                        const SizedBox(height: 10),
                         Text(t(context).noSalesYet,
-                            style: theme.textTheme.bodyLarge),
-                        const SizedBox(height: 6),
+                            style: theme.textTheme.titleSmall),
+                        const SizedBox(height: 4),
                         Text(t(context).startSelling,
                             style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant)),
@@ -191,53 +209,78 @@ class _OwnerDashboard extends ConsumerWidget {
                   ),
                 )
               else
-                ...d.topItems.map((item) => Card(
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor:
-                              theme.colorScheme.primaryContainer,
-                          child: Text(
-                            '${d.topItems.indexOf(item) + 1}',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: theme.colorScheme.primary),
+                Card(
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < d.topItems.length; i++) ...[
+                        if (i > 0)
+                          Divider(
+                              height: 1,
+                              indent: 66,
+                              color: theme.colorScheme.outlineVariant
+                                  .withValues(alpha: 0.4)),
+                        ListTile(
+                          leading: RankBadge(rank: i + 1),
+                          title: Text(d.topItems[i].name,
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          subtitle: Text(
+                              '${_fmtQty(d.topItems[i].qty)} sold'),
+                          trailing: MoneyText(d.topItems[i].revenue, bold: true),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 22),
+              SectionHeader(t(context).lowStock),
+              PressableCard(
+                onTap: d.lowStockCount > 0
+                    ? () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => CatalogScreen(
+                              catalogLabel: t(context).lowStockList,
+                              standalone: true,
+                              lowStockOnly: true,
+                            )))
+                    : null,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Builder(builder: (context) {
+                    final theme = Theme.of(context);
+                    final ok = d.lowStockCount == 0;
+                    final c = ok ? AppTheme.success : AppTheme.warning;
+                    return Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: c.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            ok ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+                            color: c,
+                            size: 22,
                           ),
                         ),
-                        title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text('${_fmtQty(item.qty)} sold'),
-                        trailing: MoneyText(item.revenue, bold: true),
-                      ),
-                    )),
-              const SizedBox(height: 20),
-              SectionHeader(t(context).lowStock),
-              Card(
-                child: ListTile(
-                  enabled: d.lowStockCount > 0,
-                  leading: Icon(
-                    d.lowStockCount > 0
-                        ? Icons.warning_amber_rounded
-                        : Icons.check_circle_rounded,
-                    color: d.lowStockCount > 0
-                        ? const Color(0xFFB3261E)
-                        : theme.colorScheme.primary,
-                  ),
-                  title: Text(d.lowStockCount > 0
-                      ? '${d.lowStockCount} ${t(context).items.toLowerCase()} ${t(context).lowStock.toLowerCase()}'
-                      : t(context).allStockedUp),
-                  trailing: d.lowStockCount > 0
-                      ? const Icon(Icons.chevron_right_rounded)
-                      : null,
-                  onTap: d.lowStockCount > 0
-                      ? () => Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => CatalogScreen(
-                                catalogLabel: t(context).lowStockList,
-                                standalone: true,
-                                lowStockOnly: true,
-                              )))
-                      : null,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            ok
+                                ? t(context).allStockedUp
+                                : '${d.lowStockCount} ${t(context).items.toLowerCase()} ${t(context).lowStock.toLowerCase()}',
+                            style: theme.textTheme.bodyLarge
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        if (!ok)
+                          Icon(Icons.chevron_right_rounded,
+                              color: theme.colorScheme.onSurfaceVariant),
+                      ],
+                    );
+                  }),
                 ),
               ),
-              const SizedBox(height: 32),
             ],
           );
         },
@@ -263,33 +306,46 @@ class _CashierHome extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(t(context).quickActions,
-                style: theme.textTheme.titleMedium
+                style: theme.textTheme.titleSmall
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             const SizedBox(height: 20),
             // B2: the New Sale button front and center — the cashier's world.
-            Material(
-              color: theme.colorScheme.primary,
-              borderRadius: BorderRadius.circular(24),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(24),
-                onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const PosScreen(standalone: true))),
-                child: Container(
-                  width: 220,
-                  height: 220,
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.point_of_sale_rounded,
-                          size: 64, color: Colors.white),
-                      const SizedBox(height: 14),
-                      Text(t(context).newSale,
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                              color: Colors.white, fontWeight: FontWeight.w700)),
-                    ],
-                  ),
+            InkWell(
+              borderRadius: BorderRadius.circular(28),
+              onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PosScreen(standalone: true))),
+              child: Ink(
+                width: 230,
+                height: 230,
+                decoration: const BoxDecoration(
+                  gradient: AppTheme.heroGradient,
+                  borderRadius: BorderRadius.all(Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Color(0x330E7A3D),
+                        blurRadius: 20,
+                        offset: Offset(0, 8)),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 74,
+                      height: 74,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.point_of_sale_rounded,
+                          size: 40, color: Colors.white),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(t(context).newSale,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                            color: Colors.white, fontWeight: FontWeight.w700)),
+                  ],
                 ),
               ),
             ),

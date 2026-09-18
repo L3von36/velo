@@ -93,21 +93,31 @@ class _CheckoutSheetState extends ConsumerState<CheckoutSheet> {
               padding: const EdgeInsets.only(bottom: 10),
               child: Material(
                 color: m.enabled
-                    ? theme.colorScheme.surfaceContainerLow
+                    ? theme.colorScheme.surfaceContainerLowest
                     : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(14),
                 child: InkWell(
                   onTap: m.enabled ? () => _pick(m.key) : null,
                   borderRadius: BorderRadius.circular(14),
                   child: Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: theme.colorScheme.outlineVariant),
+                      border: Border.all(
+                          color: theme.colorScheme.outlineVariant
+                              .withValues(alpha: 0.7)),
                     ),
                     child: Row(
                       children: [
-                        Icon(m.icon, color: m.color, size: 26),
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: m.color.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(m.icon, color: m.color, size: 24),
+                        ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -124,7 +134,11 @@ class _CheckoutSheetState extends ConsumerState<CheckoutSheet> {
                           ),
                         ),
                         Text(Money.etb(_total),
-                            style: theme.textTheme.bodyMedium?.copyWith(color: m.color)),
+                            style: theme.textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(width: 10),
+                        Icon(Icons.chevron_right_rounded,
+                            size: 20, color: theme.colorScheme.onSurfaceVariant),
                       ],
                     ),
                   ),

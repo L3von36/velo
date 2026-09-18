@@ -30,6 +30,9 @@ class AppLocalizationsAm extends AppLocalizations {
   String get login => 'ግባ';
 
   @override
+  String get welcomeBack => 'እንኳን ደህና መጡ';
+
+  @override
   String get signup => 'መለያ ፍጠር';
 
   @override

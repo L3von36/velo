@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app.dart';
 import '../../providers/session.dart';
 import '../../providers/shop.dart';
+import '../../theme/app_theme.dart' show AppTheme;
+import '../../widgets/common.dart';
 import '../dashboard_screen.dart';
 import '../pos/pos_screen.dart';
 import '../catalog/catalog_screen.dart';
@@ -80,7 +82,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
     final offlineBanner = !online
         ? Material(
-            color: const Color(0xFF8A4B00),
+            color: AppTheme.warning,
             child: SafeArea(
               bottom: false,
               child: SizedBox(
@@ -96,7 +98,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                         child: Text(t(context).offlineBanner,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.white, fontSize: 12)),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
                       ),
                     ],
                   ),
@@ -129,7 +134,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       );
     }
 
-    // Tablet & desktop: rail / sidebar.
+    // Tablet & desktop: rail / sidebar with branded extended header.
     final extended = width > 1024;
     final theme = Theme.of(context);
     return Scaffold(
@@ -145,17 +150,22 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                   selectedIndex: _index,
                   onDestinationSelected: (i) => setState(() => _index = i),
                   leading: Padding(
-                    padding: const EdgeInsets.only(top: 14, bottom: 10),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 24),
-                    ),
+                    padding: const EdgeInsets.only(top: 16, bottom: 14),
+                    child: extended
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Row(
+                              children: [
+                                const BrandMark(size: 40, radius: 12),
+                                const SizedBox(width: 10),
+                                Text('Velo',
+                                    style: theme.textTheme.titleLarge?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.4)),
+                              ],
+                            ),
+                          )
+                        : const Center(child: BrandMark(size: 40, radius: 12)),
                   ),
                   destinations: destinations
                       .map((d) => NavigationRailDestination(

@@ -140,6 +140,12 @@ abstract class AppLocalizations {
   /// **'Log in'**
   String get login;
 
+  /// No description provided for @welcomeBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back'**
+  String get welcomeBack;
+
   /// No description provided for @signup.
   ///
   /// In en, this message translates to:

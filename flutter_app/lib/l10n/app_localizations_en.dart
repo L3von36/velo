@@ -30,6 +30,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get login => 'Log in';
 
   @override
+  String get welcomeBack => 'Welcome back';
+
+  @override
   String get signup => 'Create account';
 
   @override
