@@ -274,6 +274,7 @@ jobs:
       - name: Create Release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           VER: ${{ github.ref_name }}
         run: |
           gh release create "$VER" \
