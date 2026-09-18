@@ -31,12 +31,21 @@ jobs:
         working-directory: flutter_app
         run: flutter analyze
 
+      - name: Decode release keystore
+        working-directory: flutter_app
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/velo-release.jks
+
       - name: Apply launcher icons
         working-directory: flutter_app
         run: dart run flutter_launcher_icons
 
-      - name: Build release APK
+      - name: Build signed release APK
         working-directory: flutter_app
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/flutter_app/android/app/velo-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: flutter build apk --release
 
       - name: Upload APK artifact

@@ -73,16 +73,49 @@ flutter run                # Android emulator reaches the API via 10.0.2.2:8000
 
 On real devices, open **Settings → Server URL** in the app and point it at your machine's LAN IP (e.g. `http://192.168.1.10:8000/api`).
 
+## Releases & signing
+
+**Every version tag creates a GitHub Release with all installers attached.**
+
+```bash
+git tag v1.0.1 && git push origin v1.0.1
+# -> "Release" workflow builds everything, then publishes
+#    https://github.com/L3von36/velo/releases/tag/v1.0.1
+```
+
+Each release contains: signed `app-release.apk`, Play-Store-ready `app-release.aab`, signed/unsigned iOS `ipa`, `velo-windows-x64.zip`, and `velo-web-dist.zip`. App version name is taken from the tag (`v1.2.3` → versionName `1.2.3`).
+
+### Android signing (already configured)
+
+- Release keystore is stored as repo secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`) — never committed.
+- `android/app/build.gradle.kts` signs release builds when `ANDROID_KEYSTORE_PATH` is set (CI), or via `android/key.properties` (local), and falls back to the debug key otherwise.
+- ⚠️ Keep a backup of `velo-release.jks` — it is the identity of the app on Google Play.
+
+### iOS / TestFlight (add your Apple account)
+
+The signed TestFlight job runs automatically once these repo **secrets** are set (Settings → Secrets and variables → Actions):
+
+| Secret | Where to get it |
+|---|---|
+| `IOS_P12_BASE64`, `IOS_P12_PASSWORD` | Apple Developer → Certificates → export "Apple Distribution" cert as `.p12` |
+| `IOS_PROVISION_PROFILE_BASE64` | Profiles → App Store profile matching `com.velo.app` (base64 of `.mobileprovision`) |
+| `APPLE_TEAM_ID` | Membership page (10-char ID) |
+| `APPSTORE_ISSUER_ID`, `APPSTORE_KEY_ID`, `APPSTORE_API_PRIVATE_KEY` | App Store Connect → Users and Access → Integrations → API key (base64 of `.p8` into the private key secret) |
+
+Without them the workflow still publishes an **unsigned IPA** so nothing breaks.
+
 ## CI/CD — automated builds
 
 `.github/workflows/build.yml` runs on every push to `main` and produces download artifacts:
 
 | Job | Runner | Output |
 |---|---|---|
-| `build-android` | ubuntu-latest | `velo-android-apk` → `app-release.apk` |
+| `build-android` | ubuntu-latest | `velo-android-apk` → signed `app-release.apk` |
 | `build-ios` | macos-latest | `velo-ios-unsigned-ipa` → unsigned `Payload` IPA (add your signing cert/team in Xcode to distribute via TestFlight) |
 | `build-web` | ubuntu-latest | `velo-web-dist` + auto-deploy to **GitHub Pages** |
 | `build-windows` | windows-latest | `velo-windows-x64.zip` containing the release `.exe` |
+
+`.github/workflows/release.yml` runs on `v*` tags and **publishes GitHub Releases** with every artifact attached (see above).
 
 The web app is published at `https://<owner>.github.io/velo/` after the first successful run (GitHub → Settings → Pages → Source: *GitHub Actions*).
 
