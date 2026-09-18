@@ -253,14 +253,30 @@ jobs:
           pattern: velo-*
           path: dist
 
-      - name: Package web dist
+      - name: Package release assets
+        env:
+          VER: ${{ github.ref_name }}
         run: |
           (cd dist/velo-web-dist && zip -qry ../velo-web-dist.zip .)
           rm -rf dist/velo-web-dist
-          ls -laR dist
+          mkdir -p assets
+          cp dist/velo-android-apk/app-release.apk        "assets/velo-${VER}.apk"
+          cp dist/velo-android-aab/app-release.aab        "assets/velo-${VER}.aab"
+          if [ -d dist/velo-ios-ipa ]; then
+            cp dist/velo-ios-ipa/velo.ipa                 "assets/velo-${VER}-ios.ipa"
+          else
+            cp dist/velo-ios-unsigned-ipa/velo-ios-unsigned.ipa "assets/velo-${VER}-ios-unsigned.ipa"
+          fi
+          cp dist/velo-windows-x64/velo-windows-x64.zip   "assets/velo-${VER}-windows-x64.zip"
+          cp dist/velo-web-dist.zip                       "assets/velo-${VER}-web.zip"
+          ls -la assets
 
       - name: Create Release
-        uses: softprops/action-ghrelease@v2
-        with:
-          files: dist/**/*
-          generate_release_notes: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VER: ${{ github.ref_name }}
+        run: |
+          gh release create "$VER" \
+            --title "Velo ${VER#v}" \
+            --generate-notes \
+            assets/* || gh release upload "$VER" assets/* --clobber
