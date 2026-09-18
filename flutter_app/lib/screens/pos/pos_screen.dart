@@ -588,7 +588,6 @@ class _CustomerPickerSheet extends ConsumerStatefulWidget {
 class _CustomerPickerSheetState extends ConsumerState<_CustomerPickerSheet> {
   final _search = TextEditingController();
   List<Customer>? _results;
-  bool _loading = false;
 
   @override
   void initState() {
@@ -597,7 +596,6 @@ class _CustomerPickerSheetState extends ConsumerState<_CustomerPickerSheet> {
   }
 
   Future<void> _run() async {
-    setState(() => _loading = true);
     try {
       final r = await Api().customers(search: _search.text);
       if (mounted) setState(() => _results = r);

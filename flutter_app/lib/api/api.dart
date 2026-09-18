@@ -3,8 +3,8 @@ import 'api_client.dart';
 
 /// Thin typed wrappers over every backend endpoint.
 class Api {
-  static final Api _I = Api._();
-  factory Api() => _I;
+  static final Api _instance = Api._();
+  factory Api() => _instance;
   Api._();
 
   final _c = ApiClient.I;

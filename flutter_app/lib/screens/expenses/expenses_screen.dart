@@ -192,7 +192,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
               style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 14),
           DropdownButtonFormField<int>(
-            value: _categoryId,
+            initialValue: _categoryId,
             decoration: InputDecoration(labelText: t(context).category),
             items: widget.categories
                 .map((c) => DropdownMenuItem(value: c.id, child: Text(c.name)))

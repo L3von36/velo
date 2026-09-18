@@ -15,8 +15,11 @@ class Money {
 class EthPhone {
   static String? normalize(String raw) {
     var d = raw.replaceAll(RegExp(r'[^0-9+]'), '').trim();
-    if (d.startsWith('+251')) d = '0${d.substring(4)}';
-    else if (d.startsWith('251')) d = '0${d.substring(3)}';
+    if (d.startsWith('+251')) {
+      d = '0${d.substring(4)}';
+    } else if (d.startsWith('251')) {
+      d = '0${d.substring(3)}';
+    }
     if (RegExp(r'^09\d{8}$').hasMatch(d)) return d;
     return null;
   }

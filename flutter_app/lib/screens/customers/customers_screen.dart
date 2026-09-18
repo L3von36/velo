@@ -351,6 +351,7 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet> {
   Future<void> _ledgerEntry(BuildContext context, String type) async {
     final amount = TextEditingController();
     final note = TextEditingController();
+    final messenger = ScaffoldMessenger.of(context);
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -392,10 +393,8 @@ class _CustomerDetailSheetState extends ConsumerState<_CustomerDetailSheet> {
         });
         await _load();
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(e.toString().replaceFirst('ApiException: ', ''))));
-        }
+        messenger.showSnackBar(
+            SnackBar(content: Text(e.toString().replaceFirst('ApiException: ', ''))));
       }
     }
   }

@@ -199,7 +199,7 @@ class _ItemFormSheetState extends ConsumerState<ItemFormSheet> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<int>(
-                  value: _categoryId,
+                  initialValue: _categoryId,
                   decoration: InputDecoration(labelText: t(context).category),
                   items: [
                     DropdownMenuItem(value: null, child: Text(t(context).uncategorized)),
@@ -223,7 +223,7 @@ class _ItemFormSheetState extends ConsumerState<ItemFormSheet> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: _unit,
+                          initialValue: _unit,
                           decoration: InputDecoration(labelText: t(context).unit),
                           items: const [
                             DropdownMenuItem(value: 'pc', child: Text('Piece')),
@@ -261,7 +261,7 @@ class _ItemFormSheetState extends ConsumerState<ItemFormSheet> {
                 ] else ...[
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
-                    value: _duration,
+                    initialValue: _duration,
                     decoration: InputDecoration(labelText: t(context).duration),
                     items: [15, 20, 30, 45, 60, 90, 120]
                         .map((m) => DropdownMenuItem(value: m, child: Text('$m min')))

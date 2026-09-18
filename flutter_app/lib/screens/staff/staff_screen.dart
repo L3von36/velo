@@ -39,8 +39,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final session = ref.watch(sessionProvider).value;
-    
+
     return Scaffold(
       appBar: AppBar(title: Text(t(context).staffList)),
       floatingActionButton: FloatingActionButton.extended(
@@ -106,11 +105,12 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                   onChanged: s.role == 'owner'
                                       ? null
                                       : (v) async {
+                                          final messenger = ScaffoldMessenger.of(context);
                                           try {
                                             await Api().updateStaff(s.id, {'active': v});
                                             await _load();
                                           } catch (e) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
+                                            messenger.showSnackBar(
                                                 SnackBar(content: Text('$e')));
                                           }
                                         },
@@ -224,7 +224,7 @@ class _StaffFormState extends ConsumerState<_StaffForm> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: _role,
+            initialValue: _role,
             decoration: InputDecoration(labelText: t(context).role),
             items: [
               DropdownMenuItem(value: 'manager', child: Text(t(context).manager)),

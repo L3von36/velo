@@ -1,5 +1,5 @@
 /// Typed models mirroring the Django API shapes (snake_case kept via fromJson).
-library models;
+library;
 
 class BusinessTypeConfig {
   BusinessTypeConfig({

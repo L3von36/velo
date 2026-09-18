@@ -156,17 +156,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Card(
             child: Column(
               children: [
-                RadioListTile<String>(
-                  value: 'en',
+                RadioGroup<String>(
                   groupValue: lang,
-                  title: const Text('English'),
                   onChanged: (v) => _setLang(v!),
-                ),
-                RadioListTile<String>(
-                  value: 'am',
-                  groupValue: lang,
-                  title: const Text('አማርኛ'),
-                  onChanged: (v) => _setLang(v!),
+                  child: Column(
+                    children: [
+                      RadioListTile<String>(
+                        value: 'en',
+                        title: const Text('English'),
+                      ),
+                      RadioListTile<String>(
+                        value: 'am',
+                        title: const Text('አማርኛ'),
+                      ),
+                    ],
+                  ),
                 ),
                 SwitchListTile(
                   secondary: const Icon(Icons.dark_mode_rounded),

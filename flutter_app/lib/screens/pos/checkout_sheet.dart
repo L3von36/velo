@@ -207,7 +207,7 @@ class _CheckoutSheetState extends ConsumerState<CheckoutSheet> {
               if (k == 'C') {
                 _tenderedText = '';
               } else if (k == '.') {
-                if (!_tenderedText.contains('.')) _tenderedText = '${_tenderedText}.';
+                if (!_tenderedText.contains('.')) _tenderedText = '$_tenderedText.';
               } else if (_tenderedText.length < 10) {
                 _tenderedText = '$_tenderedText$k';
               }
