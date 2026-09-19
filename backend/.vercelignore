@@ -1,0 +1,13 @@
+# Never upload secrets or junk to Vercel
+.env
+.venv
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.git
+staticfiles/
+deploy_pa.sh
+render.yaml
+build.sh
+README_ADMIN.md

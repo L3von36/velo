@@ -14,5 +14,8 @@ urlpatterns = [
     # Health probe (Render) — no auth, no DB touch.
     path("healthz", healthz, name="healthz"),
     path("admin/", velo_admin_site.urls),
+    # Django's default LOGIN_REDIRECT_URL — land on the dashboard instead
+    # of a 404 when someone logs in via /admin/login/ without ?next=.
+    path("accounts/profile/", RedirectView.as_view(url="/admin/", permanent=False)),
     path("", RedirectView.as_view(url="/admin/", permanent=False)),
 ]

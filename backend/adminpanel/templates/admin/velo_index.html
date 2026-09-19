@@ -1,93 +1,170 @@
 {% extends "admin/base_site.html" %}
 {% load i18n %}
 
-{% block extrastyle %}
-{{ block.super }}
-<style>
-  .velo-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 12px; margin: 0 0 20px; }
-  .velo-card { background: var(--darkened-bg, #f8f8f8); border: 1px solid var(--hairline-color, #e0e0e0);
-    border-radius: 10px; padding: 14px 16px; }
-  .velo-card .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
-    color: var(--body-quiet-color, #666); }
-  .velo-card .v { font-size: 26px; font-weight: 700; line-height: 1.2; margin-top: 4px;
-    color: var(--body-fg, #333); }
-  .velo-card .s { font-size: 12px; color: var(--body-quiet-color, #666); margin-top: 2px; }
-  .velo-panel { background: var(--body-bg, #fff); border: 1px solid var(--hairline-color, #e0e0e0);
-    border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; overflow-x: auto; }
-  .velo-panel h2 { margin: 0 0 10px; font-size: 14px; color: var(--body-fg, #333); }
-  .velo-panel table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .velo-panel th { text-align: left; color: var(--body-quiet-color, #666); font-weight: 600;
-    padding: 6px 8px; border-bottom: 1px solid var(--hairline-color, #e0e0e0); }
-  .velo-panel td { padding: 6px 8px; border-bottom: 1px solid var(--hairline-color, #eee); }
-  .velo-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
-  .velo-chip { display: inline-block; background: var(--darkened-bg, #f2f2f2);
-    border: 1px solid var(--hairline-color, #ddd); border-radius: 999px;
-    padding: 3px 12px; margin: 0 8px 8px 0; font-size: 12.5px; }
-  .velo-chip b { font-weight: 700; }
-  .velo-num { text-align: right; font-variant-numeric: tabular-nums; }
-</style>
-{% endblock %}
-
 {% block content %}
+<div class="vp">
 
-<div class="velo-cards">
-  <div class="velo-card"><div class="k">Shops</div><div class="v">{{ kpi.cards.shops_total }}</div>
-    <div class="s">+{{ kpi.cards.shops_new_30d }} in last 30d</div></div>
-  <div class="velo-card"><div class="k">App users</div><div class="v">{{ kpi.cards.users_total }}</div>
-    <div class="s">{{ kpi.cards.users_active_7d }} active this week</div></div>
-  <div class="velo-card"><div class="k">Catalog items</div><div class="v">{{ kpi.cards.items_total }}</div>
-    <div class="s">across all shops</div></div>
-  <div class="velo-card"><div class="k">Sales all-time</div><div class="v">{{ kpi.cards.sales_all_count }}</div>
-    <div class="s">ETB {{ kpi.cards.sales_all_sum }}</div></div>
-  <div class="velo-card"><div class="k">Revenue today (EAT)</div><div class="v">{{ kpi.cards.sales_today_sum }}</div>
-    <div class="s">{{ kpi.cards.sales_today_count }} sales · ETB {{ kpi.cards.sales_7d_sum }} last 7d</div></div>
-  <div class="velo-card"><div class="k">Expenses last 7d</div><div class="v">{{ kpi.cards.expenses_7d_sum }}</div>
-    <div class="s">logged by shops</div></div>
-</div>
-
-<div class="velo-grid2">
-  <div class="velo-panel">
-    <h2>Newest shops</h2>
-    <table>
-      <tr><th>#</th><th>Name</th><th>Type</th><th>Plan</th><th>Phone</th><th>Joined</th></tr>
-      {% for s in kpi.recent_shops %}
-      <tr>
-        <td>{{ s.id }}</td>
-        <td><a href="/admin/adminpanel/shop/{{ s.id }}/change/">{{ s.name }}</a></td>
-        <td>{{ s.business_type }}</td>
-        <td>{{ s.plan }}</td>
-        <td>{{ s.phone|default:"—" }}</td>
-        <td>{{ s.created_at|date:"M d, H:i" }}</td>
-      </tr>
-      {% empty %}<tr><td colspan="6">No shops yet.</td></tr>{% endfor %}
-    </table>
+  {# ---------- hero ---------- #}
+  <div class="vp-hero">
+    <div>
+      <h1>Platform overview</h1>
+      <p>Live data from Supabase · {% now "D, M d Y · H:i" %} EAT</p>
+    </div>
+    <div class="vp-hero-badges">
+      <span class="vp-chip vp-chip-green"><span class="material-symbols-outlined">database</span> Supabase · bypasses RLS</span>
+      <span class="vp-chip"><span class="material-symbols-outlined">lock</span> Read-only console</span>
+    </div>
   </div>
 
-  <div class="velo-panel">
-    <h2>Latest sales</h2>
-    <table>
-      <tr><th>#</th><th>Shop</th><th>Total</th><th>Method</th><th>Status</th><th>When</th></tr>
-      {% for s in kpi.recent_sales %}
-      <tr>
-        <td>{{ s.id }}</td>
-        <td>{{ s.shop_name }}</td>
-        <td class="velo-num">{{ s.total }}</td>
-        <td>{{ s.method }}</td>
-        <td>{{ s.status }}</td>
-        <td>{{ s.created_at|date:"M d, H:i" }}</td>
-      </tr>
-      {% empty %}<tr><td colspan="6">No sales yet.</td></tr>{% endfor %}
-    </table>
+  {# ---------- KPI cards ---------- #}
+  <div class="vp-cards">
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-green">storefront</span>Shops</div>
+      <div class="vp-v">{{ kpi.cards.shops_total }}</div>
+      <div class="vp-s"><b class="vp-up">+{{ kpi.cards.shops_new_30d }}</b> new in last 30 days</div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-blue">group</span>App users</div>
+      <div class="vp-v">{{ kpi.cards.users_total }}</div>
+      <div class="vp-s"><b>{{ kpi.cards.users_active_7d }}</b> signed in this week</div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-green">today</span>Sales today</div>
+      <div class="vp-v">{{ kpi.cards.sales_today_count }}</div>
+      <div class="vp-s">ETB {{ kpi.cards.sales_today_sum }} collected</div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-gold">trending_up</span>Revenue · 7 days</div>
+      <div class="vp-v">{{ kpi.cards.sales_7d_sum }}</div>
+      <div class="vp-s"><b>ETB</b> · {{ kpi.cards.sales_7d_count }} sales this week</div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-violet">receipt_long</span>All-time volume</div>
+      <div class="vp-v">{{ kpi.cards.sales_all_count }}</div>
+      <div class="vp-s">ETB {{ kpi.cards.sales_all_sum }} lifetime</div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-red">account_balance</span>Expenses · 7 days</div>
+      <div class="vp-v">{{ kpi.cards.expenses_7d_sum }}</div>
+      <div class="vp-s">ETB logged by shops</div>
+    </div>
   </div>
-</div>
 
-<div class="velo-panel">
-  <h2>Shops by type / plan</h2>
-  {% for t in kpi.by_type %}<span class="velo-chip">{{ t.business_type }}: <b>{{ t.shops }}</b></span>{% endfor %}
-  {% for p in kpi.by_plan %}<span class="velo-chip">plan {{ p.plan }}: <b>{{ p.shops }}</b></span>{% endfor %}
+  {# ---------- 14-day sales chart ---------- #}
+  <div class="vp-panel">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">bar_chart</span> Sales — last 14 days</h2>
+      <span class="vp-muted">ETB per day · Addis Ababa calendar</span>
+    </div>
+    {% if kpi.max_daily > 0 %}
+    <div class="vp-chart">
+      {% for r in kpi.series_14d %}
+      <div class="vp-col" title="{{ r.label }} — ETB {{ r.total|floatformat:2 }} ({{ r.cnt }} sales)">
+        <div class="vp-bar-track">
+          <div class="vp-bar{% if r.total == 0 %} is-zero{% endif %}" style="height: {% widthratio r.total kpi.max_daily 100 %}%"></div>
+        </div>
+        <div class="vp-lab{% if forloop.counter0|divisibleby:2 %}{% else %} vp-lab-hidden{% endif %}">{{ r.label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="vp-empty">No sales recorded in the last 14 days yet.</p>
+    {% endif %}
+  </div>
+
+  {# ---------- shops & sales tables ---------- #}
+  <div class="vp-grid2">
+    <div class="vp-panel">
+      <div class="vp-panel-head">
+        <h2><span class="material-symbols-outlined">storefront</span> Newest shops</h2>
+        <a class="vp-link" href="/admin/adminpanel/shop/">View all →</a>
+      </div>
+      <table class="vp-table">
+        <thead><tr><th>Name</th><th>Type</th><th>Plan</th><th>Phone</th><th>Joined</th></tr></thead>
+        <tbody>
+          {% for s in kpi.recent_shops %}
+          <tr>
+            <td><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ s.id }}/change/">{{ s.name }}</a></td>
+            <td><span class="vp-tag">{{ s.business_type }}</span></td>
+            <td><span class="vp-tag vp-tag-green">{{ s.plan }}</span></td>
+            <td class="vp-dim">{{ s.phone|default:"—" }}</td>
+            <td class="vp-dim">{{ s.created_at|date:"M d, H:i" }}</td>
+          </tr>
+          {% empty %}<tr><td colspan="5" class="vp-empty">No shops yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="vp-panel">
+      <div class="vp-panel-head">
+        <h2><span class="material-symbols-outlined">receipt_long</span> Latest sales</h2>
+        <a class="vp-link" href="/admin/adminpanel/sale/">View all →</a>
+      </div>
+      <table class="vp-table">
+        <thead><tr><th>Shop</th><th class="vp-num">Total</th><th>Method</th><th>Status</th><th>When</th></tr></thead>
+        <tbody>
+          {% for s in kpi.recent_sales %}
+          <tr>
+            <td>{{ s.shop_name }}</td>
+            <td class="vp-num"><b>{{ s.total|floatformat:2 }}</b></td>
+            <td><span class="vp-tag">{{ s.method }}</span></td>
+            <td><span class="vp-pill vp-pill-{{ s.status }}">{{ s.status }}</span></td>
+            <td class="vp-dim">{{ s.created_at|date:"M d, H:i" }}</td>
+          </tr>
+          {% empty %}<tr><td colspan="5" class="vp-empty">No sales yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ---------- top tenants & distribution ---------- #}
+  <div class="vp-grid2">
+    <div class="vp-panel">
+      <div class="vp-panel-head">
+        <h2><span class="material-symbols-outlined">leaderboard</span> Top tenants — 30 days</h2>
+        <span class="vp-muted">by revenue</span>
+      </div>
+      {% for t in kpi.top_shops %}
+      <div class="vp-rank">
+        <div class="vp-rank-line">
+          <span class="vp-rank-name">{{ t.name }}</span>
+          <span class="vp-rank-val"><b>ETB {{ t.total|floatformat:2 }}</b> · {{ t.cnt }} sales</span>
+        </div>
+        <div class="vp-progress">
+          <div class="vp-progress-bar" style="width: {% widthratio t.total kpi.top_shops.0.total 100 %}%"></div>
+        </div>
+      </div>
+      {% empty %}<p class="vp-empty">No sales in the last 30 days yet.</p>
+      {% endfor %}
+    </div>
+
+    <div class="vp-panel">
+      <div class="vp-panel-head">
+        <h2><span class="material-symbols-outlined">donut_small</span> Tenants by business type</h2>
+      </div>
+      {% for t in kpi.by_type %}
+      <div class="vp-rank">
+        <div class="vp-rank-line">
+          <span class="vp-rank-name"><span class="vp-tag">{{ t.business_type }}</span></span>
+          <span class="vp-rank-val">{{ t.shops }} shop{{ t.shops|pluralize }}</span>
+        </div>
+        <div class="vp-progress">
+          <div class="vp-progress-bar" style="width: {% widthratio t.shops kpi.cards.shops_total 100 %}%"></div>
+        </div>
+      </div>
+      {% empty %}<p class="vp-empty">No shops yet.</p>
+      {% endfor %}
+      <div class="vp-plan-row">
+        {% for p in kpi.by_plan %}
+        <span class="vp-chip vp-chip-green">plan {{ p.plan }}: <b>{{ p.shops }}</b></span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
 </div>
 
 {{ block.super }}
-
 {% endblock %}

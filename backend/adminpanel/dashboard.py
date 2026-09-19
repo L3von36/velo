@@ -51,6 +51,9 @@ def kpis() -> dict:
         "sales_7d_sum": _money(_one(
             "select coalesce(sum(total),0) from public.sales "
             "where created_at > now() - interval '7 days'")),
+        "sales_7d_count": _one(
+            "select count(*) from public.sales "
+            "where created_at > now() - interval '7 days'"),
         "expenses_7d_sum": _money(_one(
             "select coalesce(sum(amount),0) from public.expenses "
             "where created_at > now() - interval '7 days'")),
@@ -74,6 +77,35 @@ def kpis() -> dict:
         select plan, count(*) as shops from public.shops
         group by plan order by shops desc""")
 
+    # Daily revenue for the last 14 days (EAT calendar days, gaps included).
+    series_14d = _rows("""
+        with days as (
+            select generate_series(
+                ((now() at time zone 'Africa/Addis_Ababa')::date
+                 - interval '13 days')::date,
+                (now() at time zone 'Africa/Addis_Ababa')::date,
+                interval '1 day')::date as d)
+        select to_char(days.d, 'Mon DD') as label,
+               coalesce(sum(s.total), 0) as total,
+               count(s.id) as cnt
+        from days
+        left join public.sales s
+          on (s.created_at at time zone 'Africa/Addis_Ababa')::date = days.d
+        group by days.d order by days.d""")
+
+    # Busiest tenants over the last 30 days.
+    top_shops = _rows("""
+        select sh.name, sh.plan, count(s.id) as cnt,
+               coalesce(sum(s.total), 0) as total
+        from public.sales s
+        join public.shops sh on sh.id = s.shop_id
+        where s.created_at > now() - interval '30 days'
+        group by sh.id, sh.name, sh.plan
+        order by total desc limit 5""")
+
+    max_daily = max((float(r["total"]) for r in series_14d), default=0.0)
+
     return {"cards": cards, "recent_shops": recent_shops,
             "recent_sales": recent_sales, "by_type": by_type,
-            "by_plan": by_plan}
+            "by_plan": by_plan, "series_14d": series_14d,
+            "top_shops": top_shops, "max_daily": max_daily}

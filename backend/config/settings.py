@@ -47,6 +47,8 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 INSTALLED_APPS = [
+    "unfold",                     # modern admin theme — MUST precede django.contrib.admin
+    "unfold.contrib.filters",    # dropdown/numeric filter widgets
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -109,13 +111,95 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 _static_root_env = os.environ.get("VELO_STATIC_ROOT")
-STATIC_ROOT = Path(_static_root_env) if _static_root_env else BASE_DIR / "staticfiles"
+# `static_root/` is the committed, pre-collected bundle used by the Vercel
+# serverless bundle (whitenoise serves straight from it in production).
+STATIC_ROOT = Path(_static_root_env) if _static_root_env else BASE_DIR / "static_root"
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ---------------------------------------------------------------------------
+# Unfold theme — Velo brand (Ethiopian deep green #0E7A3D + gold #E8A200,
+# mirroring flutter_app/lib/theme/app_theme.dart).
+# ---------------------------------------------------------------------------
+_VELO_GREEN = {
+    "50": "#ECFDF3",
+    "100": "#D3F8DF",
+    "200": "#A9EFC6",
+    "300": "#71E0A6",
+    "400": "#3FCA85",
+    "500": "#14A457",
+    "600": "#0E7A3D",   # brand primary (app seed color)
+    "700": "#0B5D30",
+    "800": "#0A4D28",
+    "900": "#093F22",
+    "950": "#052A16",
+}
+
+UNFOLD = {
+    "SITE_TITLE": "Velo Admin",
+    "SITE_HEADER": "Velo Owner Console",
+    "SITE_SUBHEADER": "Live platform data · Addis Ababa time",
+    "SITE_VERSION": "v1.6.0",
+    "SITE_URL": "/admin/",
+    "SITE_LOGO": "/static/adminpanel/velo.svg",
+    "SITE_FAVICONS": [
+        {"href": "/static/adminpanel/velo.svg", "type": "image/svg+xml"},
+    ],
+    "LOGIN": {"image": "/static/adminpanel/velo.svg"},
+    "COLORS": {"primary": _VELO_GREEN},
+    "STYLES": ["/static/adminpanel/velo_admin.css"],
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": False,
+        "navigation": [
+            {"title": "Overview", "items": [
+                {"title": "Dashboard", "icon": "dashboard", "link": "/admin/"},
+            ]},
+            {"title": "Tenancy", "items": [
+                {"title": "Shops", "icon": "storefront",
+                 "link": "/admin/adminpanel/shop/"},
+                {"title": "App users", "icon": "group",
+                 "link": "/admin/adminpanel/adminauthuser/"},
+                {"title": "Business types", "icon": "category",
+                 "link": "/admin/adminpanel/businesstype/"},
+            ]},
+            {"title": "Sales", "items": [
+                {"title": "Sales", "icon": "receipt_long",
+                 "link": "/admin/adminpanel/sale/"},
+                {"title": "Sale items", "icon": "receipt",
+                 "link": "/admin/adminpanel/saleitem/"},
+                {"title": "Sale payments", "icon": "payments",
+                 "link": "/admin/adminpanel/salepayment/"},
+                {"title": "Customer ledger", "icon": "account_balance_wallet",
+                 "link": "/admin/adminpanel/ledgerentry/"},
+            ]},
+            {"title": "Catalog", "items": [
+                {"title": "Items", "icon": "inventory_2",
+                 "link": "/admin/adminpanel/item/"},
+                {"title": "Item variants", "icon": "layers",
+                 "link": "/admin/adminpanel/itemvariant/"},
+                {"title": "Categories", "icon": "folder",
+                 "link": "/admin/adminpanel/category/"},
+            ]},
+            {"title": "Operations", "items": [
+                {"title": "Staff", "icon": "badge",
+                 "link": "/admin/adminpanel/staff/"},
+                {"title": "Expenses", "icon": "account_balance",
+                 "link": "/admin/adminpanel/expense/"},
+                {"title": "Expense categories", "icon": "sell",
+                 "link": "/admin/adminpanel/expensecategory/"},
+                {"title": "Stock movements", "icon": "swap_vert",
+                 "link": "/admin/adminpanel/stockmovement/"},
+                {"title": "Held sales", "icon": "pause_circle",
+                 "link": "/admin/adminpanel/heldsale/"},
+            ]},
+        ],
+    },
+}
 
 # The owner account lives ONLY in the django_admin schema — completely
 # separate from Supabase Auth tenant users.
