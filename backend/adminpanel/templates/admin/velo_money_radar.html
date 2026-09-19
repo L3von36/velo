@@ -32,8 +32,14 @@
   <div class="vp-cards vp-cards-tight">
     <div class="vp-card vp-card-accent">
       <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-green">trending_up</span>Upsell pipeline</div>
+      {# pipeline_mrr is an int — zero means no conversion-ready revenue yet #}
+      {% if radar.pipeline_mrr == 0 %}
+      <div class="vp-v vp-v-zero">ETB {{ radar.pipeline_mrr }}</div>
+      <div class="vp-s vp-s-zero"><b>ARR</b> ETB {{ radar.pipeline_arr }} · ready-to-convert tenants</div>
+      {% else %}
       <div class="vp-v">ETB {{ radar.pipeline_mrr }}</div>
       <div class="vp-s"><b>ARR</b> ETB {{ radar.pipeline_arr }} · ready-to-convert tenants</div>
+      {% endif %}
     </div>
     <div class="vp-card">
       <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-green">favorite</span>Healthy</div>

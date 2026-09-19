@@ -971,8 +971,12 @@ html.dark .vp-hb-dot-silent { background: #F87171; }
 html.dark .vp-chip-gold { color: #FBBF24; }
 
 @media (max-width: 640px) {
-  .vp-heartbeat { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
-  .vp-hb-tag { margin-left: 0; }
+  /* v2.6.0: single-row layout on phones — the old wrap put the pulse dot
+     and the status tag each on their own line (~147px tall banner). Now:
+     dot | body (wraps internally) | tag, ~105px, nothing orphaned. */
+  .vp-heartbeat { flex-wrap: nowrap; gap: 10px; padding: 10px 12px; }
+  .vp-hb-body { min-width: 0; }
+  .vp-hb-tag { margin-left: 0; align-self: flex-start; }
 }
 
 /* ---------- v2.2.0 per-tenant staleness pills (upsell call sheet) ------
@@ -1297,3 +1301,103 @@ html.dark .vp-col:hover .vp-lab { color: var(--color-primary-300); }
    base-400 measured muddy at 11.5px; base-300 keeps the active/inactive
    distinction but reads crisply. ------------------------------------------ */
 html.dark .vp-seg-btn:not(.is-active) { color: var(--color-base-300, #d1d5dc); }
+
+/* ==========================================================================
+   v2.6.0 — OWNER SURFACES: dashboard + Money Radar polish
+   Zero-state muting, chart hover tooltip, hero chip grouping, funnel
+   numerals, numeric-cell nowrap, phone heartbeat layout, chip tap targets.
+   Templates: velo_index.html + velo_money_radar.html.
+   ========================================================================== */
+
+/* ---------- zero-state KPI muting ----------------------------------------
+   0 sales / ETB 0.00 means "nothing happened yet", not a healthy metric —
+   drop it to the muted grey so real numbers carry the card row. Templates
+   key it off the typed context values: counts are ints (== 0), money and
+   rates are strings (== "0.00"). ------------------------------------------ */
+.vp-v-zero {
+  color: var(--vp-muted);
+  font-weight: 500;
+  font-size: 17px;
+  letter-spacing: 0;
+}
+html.dark .vp-v-zero { color: var(--vp-muted); }
+.vp-s-zero { color: var(--vp-muted); }
+.vp-s-zero b { color: var(--vp-muted); }
+html.dark .vp-s-zero { color: var(--vp-muted); }
+html.dark .vp-s-zero b { color: var(--vp-muted); }
+
+/* ---------- chart hover tooltip (CSS-only) --------------------------------
+   Hover-capable pointers only: the hover:none guard keeps touch devices
+   from ever rendering it (sticky tap-hover could otherwise create
+   scrollable overflow inside the mobile panel). Data mirrors the column's
+   title attribute. ---------------------------------------------------------- */
+.vp-col { position: relative; }
+.vp-tip {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  background: var(--color-base-900, #101828);
+  color: #ffffff;
+  white-space: nowrap;
+  font-size: 10.5px;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 12px rgba(16, 24, 40, .18);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .12s ease, visibility .12s ease;
+}
+.vp-tip b { font-size: 11px; font-weight: 650; }
+.vp-tip span { font-size: 10px; color: rgba(255, 255, 255, .78); }
+.vp-col:hover .vp-tip,
+.vp-col:focus-within .vp-tip { opacity: 1; visibility: visible; }
+/* edge columns: clamp the bubble inside the panel instead of clipping */
+.vp-col:first-child .vp-tip { left: 0; transform: none; align-items: flex-start; }
+.vp-col:last-child .vp-tip { left: auto; right: 0; transform: none; align-items: flex-end; }
+html.dark .vp-tip {
+  background: var(--color-base-700, #364153);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .5);
+}
+@media (hover: none) {
+  .vp-tip { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vp-tip { transition: none; }
+}
+
+/* ---------- hero chip grouping (index) ------------------------------------
+   .vp-hero-nav / .vp-hero-meta wrap as units so "Money Radar" and "Owner
+   audit" never split across lines; on >= 1024 wrapped rows right-align
+   under the title instead of leaving a ragged left edge. -------------------- */
+.vp-hero-nav,
+.vp-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+@media (min-width: 1024px) {
+  .vp-hero-badges { justify-content: flex-end; }
+}
+
+/* ---------- funnel: count column stays tabular ---------------------------- */
+.vp-fstep-val { font-variant-numeric: tabular-nums; }
+
+/* ---------- tables: numeric cells never wrap -------------------------------
+   "▼ from 12,345" and ETB sums were wrapping mid-value on narrow panels. */
+.vp-table td.vp-num { white-space: nowrap; }
+
+/* ---------- phones: chip links get a real tap target -----------------------
+   Hero chip links measured 22px tall — under any touch guideline. ---------- */
+@media (max-width: 640px) {
+  a.vp-chip { min-height: 30px; padding-top: 4px; padding-bottom: 4px; }
+}

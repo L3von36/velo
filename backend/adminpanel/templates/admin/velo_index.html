@@ -11,18 +11,27 @@
       <p>Live data from Supabase · {% now "D, M d Y · H:i" %} EAT</p>
     </div>
     <div class="vp-hero-badges">
+      {# status chips lead — worst state first #}
       {% if kpi.radar.heartbeat.status == 'silent' %}
       <span class="vp-chip vp-chip-red"><span class="material-symbols-outlined">monitor_heart</span> Platform silent {{ kpi.radar.heartbeat.ago_text }}</span>
       {% elif kpi.radar.heartbeat.status == 'cooling' %}
       <span class="vp-chip vp-chip-gold"><span class="material-symbols-outlined">monitor_heart</span> Platform cooling · last sale {{ kpi.radar.heartbeat.ago_text }} ago</span>
       {% endif %}
-      <span class="vp-chip vp-chip-green"><span class="material-symbols-outlined">database</span> Supabase · bypasses RLS</span>
-      <span class="vp-chip"><span class="material-symbols-outlined">admin_panel_settings</span> Owner privileges · full control</span>
-      <a class="vp-chip vp-chip-green" href="/admin/money-radar/" style="text-decoration:none"><span class="material-symbols-outlined">radar</span> Money Radar</a>
-      <a class="vp-chip" href="/admin/audit/" style="text-decoration:none"><span class="material-symbols-outlined">history</span> Owner audit</a>
       {% if kpi.cards.shops_suspended %}
       <span class="vp-chip vp-chip-red"><span class="material-symbols-outlined">block</span> {{ kpi.cards.shops_suspended }} suspended</span>
       {% endif %}
+
+      {# nav chips stay together as one group when the hero wraps #}
+      <div class="vp-hero-nav">
+        <a class="vp-chip vp-chip-green" href="/admin/money-radar/" style="text-decoration:none"><span class="material-symbols-outlined">radar</span> Money Radar</a>
+        <a class="vp-chip" href="/admin/audit/" style="text-decoration:none"><span class="material-symbols-outlined">history</span> Owner audit</a>
+      </div>
+
+      {# meta/reassurance chips — hidden on phones to keep the hero tight #}
+      <div class="vp-hero-meta vp-hide-sm">
+        <span class="vp-chip"><span class="material-symbols-outlined">database</span> Supabase · bypasses RLS</span>
+        <span class="vp-chip"><span class="material-symbols-outlined">admin_panel_settings</span> Owner privileges · full control</span>
+      </div>
     </div>
   </div>
 
@@ -40,8 +49,14 @@
     </div>
     <div class="vp-card">
       <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-green">today</span>Sales today</div>
+      {# zero state: count and sum are both 0 — mute the card so it does not read as a healthy metric #}
+      {% if kpi.cards.sales_today_count == 0 %}
+      <div class="vp-v vp-v-zero">{{ kpi.cards.sales_today_count }}</div>
+      <div class="vp-s vp-s-zero">ETB {{ kpi.cards.sales_today_sum }} collected</div>
+      {% else %}
       <div class="vp-v">{{ kpi.cards.sales_today_count }}</div>
       <div class="vp-s">ETB {{ kpi.cards.sales_today_sum }} collected</div>
+      {% endif %}
     </div>
     <div class="vp-card">
       <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-gold">trending_up</span>Revenue · 7 days</div>
@@ -68,8 +83,14 @@
   <div class="vp-cards vp-cards-tight">
     <div class="vp-card vp-card-accent">
       <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-green">payments</span>MRR</div>
+      {# mrr is a formatted string from dashboard.py — compare against "0.00" #}
+      {% if kpi.growth.mrr == "0.00" %}
+      <div class="vp-v vp-v-zero">ETB {{ kpi.growth.mrr }}</div>
+      <div class="vp-s vp-s-zero"><b>ARR</b> ETB {{ kpi.growth.arr }}</div>
+      {% else %}
       <div class="vp-v">ETB {{ kpi.growth.mrr }}</div>
       <div class="vp-s"><b>ARR</b> ETB {{ kpi.growth.arr }}</div>
+      {% endif %}
     </div>
     <div class="vp-card">
       <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-blue">workspace_premium</span>Paying tenants</div>
@@ -150,13 +171,22 @@
   <div class="vp-cards vp-cards-tight">
     <div class="vp-card">
       <div class="vp-k"><span class="vp-hb-dot vp-hb-dot-sm vp-hb-dot-{{ kpi.radar.heartbeat.status }}" aria-hidden="true"></span>Heartbeat</div>
+      {% if kpi.radar.heartbeat.status == 'empty' %}
+      <div class="vp-v vp-v-zero">{{ kpi.radar.heartbeat.pulse }}</div>
+      {% else %}
       <div class="vp-v">{{ kpi.radar.heartbeat.pulse }}</div>
+      {% endif %}
       <div class="vp-s">{{ kpi.radar.heartbeat.card_sub }}</div>
     </div>
     <div class="vp-card vp-card-accent">
       <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-green">trending_up</span>Upsell pipeline</div>
+      {% if kpi.radar.pipeline_mrr == 0 %}
+      <div class="vp-v vp-v-zero">ETB {{ kpi.radar.pipeline_mrr }}</div>
+      <div class="vp-s vp-s-zero"><b>ARR</b> ETB {{ kpi.radar.pipeline_arr }} · {{ kpi.radar.upsells|length }} tenant{{ kpi.radar.upsells|pluralize }} ready</div>
+      {% else %}
       <div class="vp-v">ETB {{ kpi.radar.pipeline_mrr }}</div>
       <div class="vp-s"><b>ARR</b> ETB {{ kpi.radar.pipeline_arr }} · {{ kpi.radar.upsells|length }} tenant{{ kpi.radar.upsells|pluralize }} ready</div>
+      {% endif %}
     </div>
     <div class="vp-card">
       <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-green">favorite</span>Healthy</div>
@@ -244,6 +274,8 @@
     <div class="vp-chart">
       {% for r in kpi.series %}
       <div class="vp-col" title="{{ r.label }} — ETB {{ r.total|floatformat:2 }} ({{ r.cnt }} sales)">
+        {# CSS-only hover bubble — data mirrors the title attr; hidden on touch (hover:hover guard) #}
+        <span class="vp-tip" aria-hidden="true"><b>ETB {{ r.total|floatformat:2 }}</b><span>{{ r.label }} · {{ r.cnt }} sales</span></span>
         <div class="vp-bar-track">
           <div class="vp-bar{% if r.total == 0 %} is-zero{% endif %}" style="height: {% widthratio r.total kpi.max_daily 100 %}%"></div>
         </div>
