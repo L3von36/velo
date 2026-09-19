@@ -93,6 +93,10 @@ class TenantInfo {
     required this.config,
     required this.language,
     required this.plan,
+    this.phone = '',
+    this.address = '',
+    this.latitude,
+    this.longitude,
     this.telebirrNumber = '',
     this.cbeNumber = '',
     this.acceptTelebirr = true,
@@ -105,6 +109,8 @@ class TenantInfo {
 
   final int id;
   final String name, businessType, language, plan, receiptFooter;
+  final String phone, address;
+  final double? latitude, longitude;
   final String telebirrNumber, cbeNumber;
   final bool acceptTelebirr, acceptCbe, acceptCredit;
   final bool sellsProducts, sellsServices;
@@ -116,6 +122,10 @@ class TenantInfo {
         businessType: j['business_type'] ?? 'general',
         language: j['language'] ?? 'en',
         plan: j['plan'] ?? 'free',
+        phone: j['phone'] ?? '',
+        address: j['address'] ?? '',
+        latitude: (j['latitude'] is num) ? (j['latitude'] as num).toDouble() : null,
+        longitude: (j['longitude'] is num) ? (j['longitude'] as num).toDouble() : null,
         telebirrNumber: j['telebirr_number'] ?? '',
         cbeNumber: j['cbe_number'] ?? '',
         acceptTelebirr: j['accept_telebirr'] != false,

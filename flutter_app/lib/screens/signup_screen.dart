@@ -54,6 +54,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         'shop_name': _shop.text.trim(),
         'business_type': 'general',
       });
+      // Success: pop back to the root route — the root router now renders the
+      // onboarding wizard underneath. Without this the user stays stuck on
+      // the signup form (and a retry would report "already exists").
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
+      }
     } catch (e) {
       final err =
           e is ApiException ? e : ApiException(e.toString());

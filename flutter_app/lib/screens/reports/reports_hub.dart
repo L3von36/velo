@@ -237,10 +237,15 @@ class _TrendChart extends StatelessWidget {
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
+              reservedSize: 26,
               interval: (series.length / 5).clamp(1, double.infinity).toDouble(),
               getTitlesWidget: (v, meta) {
                 final i = v.toInt();
                 if (i < 0 || i >= series.length) return const SizedBox.shrink();
+                // Label roughly every nth point only — keeps labels from
+                // colliding at the right edge of the chart.
+                final nth = (series.length / 5).ceil().clamp(1, 99);
+                if (i % nth != 0) return const SizedBox.shrink();
                 final p = series[i].date;
                 return Padding(
                   padding: const EdgeInsets.only(top: 4),

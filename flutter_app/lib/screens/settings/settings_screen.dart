@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app.dart';
 import '../../api/api.dart';
+import '../../models/models.dart';
 import '../../providers/session.dart';
 import '../../widgets/common.dart';
 import '../../utils/format.dart';
-import '../login_screen.dart';
 
 /// K1–K10 — settings hub: business profile, payment methods, receipt,
 /// language, dark mode, plan, logout.
@@ -91,15 +93,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   leading: const Icon(Icons.category_rounded),
                   title: Text(t(context).businessType),
                   subtitle: Text(tenant?.config.labelEn ?? ''),
-                  enabled: false,
+                  trailing: canManageSettings
+                      ? const Icon(Icons.chevron_right_rounded, size: 20)
+                      : null,
+                  enabled: canManageSettings,
+                  onTap: canManageSettings ? () => _pickBusinessType(context) : null,
                 ),
                 ListTile(
                   leading: const Icon(Icons.phone_rounded),
                   title: Text(t(context).phoneNumber),
-                  subtitle: Text(tenant == null || tenant.cbeNumber.isEmpty
+                  subtitle: Text(tenant == null || tenant.phone.isEmpty
                       ? '—'
-                      : EthPhone.pretty(tenant.cbeNumber)),
-                  enabled: false,
+                      : EthPhone.pretty(tenant.phone)),
+                  enabled: canManageSettings,
+                  onTap: canManageSettings
+                      ? () => _editField(context,
+                          title: t(context).phoneNumber,
+                          initial: tenant?.phone ?? '',
+                          keyboardType: TextInputType.phone,
+                          onSave: (v) => _saveSettings({'phone': v}))
+                      : null,
+                ),
+                ListTile(
+                  leading: const Icon(Icons.location_on_rounded),
+                  title: Text(t(context).location),
+                  subtitle: Text(_locationLabel(tenant)),
+                  enabled: canManageSettings,
+                  onTap: canManageSettings ? () => _captureGps(context) : null,
                 ),
               ],
             ),
@@ -196,13 +216,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: Text(t(context).logout,
                       style: TextStyle(color: theme.colorScheme.error)),
                   onTap: () async {
-                    await ref.read(sessionProvider.notifier).logout();
+                    // Close any pushed standalone screens first, then clear the
+                    // session — the root router swaps to the login screen itself.
+                    // (Pushing a second LoginScreen here used to leave a stale
+                    // route on top of the app after the next login.)
                     if (context.mounted) {
-                      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        (_) => false,
-                      );
+                      Navigator.of(context, rootNavigator: true)
+                          .popUntil((r) => r.isFirst);
                     }
+                    await ref.read(sessionProvider.notifier).logout();
                   },
                 ),
               ],
@@ -210,14 +232,93 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 24),
           Center(
-            child: Text('Velo v1.0 · built for Ethiopian businesses',
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(color: theme.colorScheme.outline)),
+            child: FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (ctx, snap) {
+                final v = snap.data?.version ?? '';
+                return Text(
+                  'Velo ${v.isNotEmpty ? 'v$v' : ''} · built for Ethiopian businesses',
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: theme.colorScheme.outline),
+                );
+              },
+            ),
           ),
           const SizedBox(height: 24),
         ],
       ),
     );
+  }
+
+  String _locationLabel(TenantInfo? tenant) {
+    if (tenant == null) return '—';
+    if (tenant.latitude != null && tenant.longitude != null) {
+      return '${tenant.latitude!.toStringAsFixed(4)}, ${tenant.longitude!.toStringAsFixed(4)}';
+    }
+    if (tenant.address.isNotEmpty) return tenant.address;
+    return t(context).notSet;
+  }
+
+  Future<void> _pickBusinessType(BuildContext context) async {
+    try {
+      final types = await Api().businessTypes();
+      if (!context.mounted) return;
+      final tenant = ref.read(sessionProvider).value?.tenant;
+      final picked = await showDialog<String>(
+        context: context,
+        builder: (ctx) => SimpleDialog(
+          title: Text(t(context).businessType),
+          children: [
+            for (final cfg in types)
+              RadioGroup<String>(
+                groupValue: tenant?.businessType,
+                onChanged: (v) => Navigator.pop(ctx, v),
+                child: RadioListTile<String>(
+                  value: cfg.key,
+                  title: Text(cfg.labelEn),
+                ),
+              ),
+          ],
+        ),
+      );
+      if (picked != null && picked != tenant?.businessType) {
+        await _saveSettings({'business_type': picked});
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not load business types.')));
+      }
+    }
+  }
+
+  /// Re-capture the shop's GPS position (Addis) and persist it.
+  Future<void> _captureGps(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final deniedMsg = t(context).locationDenied;
+    messenger.showSnackBar(SnackBar(
+        content: Text(t(context).locating), duration: const Duration(seconds: 2)));
+    try {
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      final denied = perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever;
+      final serviceOn = denied ? false : await Geolocator.isLocationServiceEnabled();
+      if (denied || !serviceOn) {
+        messenger.showSnackBar(SnackBar(content: Text(deniedMsg)));
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 15)),
+      );
+      await _saveSettings(
+          {'latitude': pos.latitude, 'longitude': pos.longitude});
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(deniedMsg)));
+    }
   }
 
   Future<void> _setLang(String lang) async {
@@ -249,13 +350,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required String title,
     required String initial,
     required Future<void> Function(String) onSave,
+    TextInputType keyboardType = TextInputType.text,
   }) async {
     final ctrl = TextEditingController(text: initial);
     final v = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(title),
-        content: TextField(controller: ctrl, autofocus: true),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: keyboardType,
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t(context).cancel)),
           FilledButton(

@@ -33,6 +33,32 @@ class AppLocalizationsAm extends AppLocalizations {
   String get welcomeBack => 'እንኳን ደህና መጡ';
 
   @override
+  String get loginSubtitle => 'ሱቅዎን ለማስተዳደር ይግቡ።';
+
+  @override
+  String itemsLowStock(num n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n ዕቃዎች ክምችታቸው ዝቅተኛ ነው',
+      one: '1 ዕቃ ክምችቱ ዝቅተኛ ነው',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get searchItemsPlain => 'ዕቃ ይፈልጉ…';
+
+  @override
+  String get captureAgain => 'እንደገና ይያዙ';
+
+  @override
+  String get location => 'መገኛ';
+
+  @override
+  String get notSet => 'አልተመዘገበም';
+
+  @override
   String get signup => 'መለያ ፍጠር';
 
   @override
@@ -72,7 +98,7 @@ class AppLocalizationsAm extends AppLocalizations {
   String get wrongCredentials => 'ስልክ ቁጥር ወይም የይለፍ ቃል ስህተት ነው';
 
   @override
-  String get businessTypeTitle => 'የሚያንቀሳቅሱት ምን ዓይነት ንግድ ነው?';
+  String get businessTypeTitle => 'ምን ዓይነት ንግድ ነው?';
 
   @override
   String get businessTypeSubtitle =>

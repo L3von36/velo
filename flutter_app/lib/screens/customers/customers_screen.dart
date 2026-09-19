@@ -101,8 +101,11 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                           ),
                           title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                           subtitle: c.phone.isEmpty ? null : Text(EthPhone.pretty(c.phone)),
-                          trailing: c.owes
-                              ? Column(
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (c.owes) ...[
+                                Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -113,8 +116,12 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                                             fontWeight: FontWeight.w800,
                                             color: const Color(0xFFB3261E))),
                                   ],
-                                )
-                              : const Icon(Icons.chevron_right_rounded),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              const Icon(Icons.chevron_right_rounded),
+                            ],
+                          ),
                         ),
                       );
                     },

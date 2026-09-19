@@ -133,9 +133,6 @@ class _CheckoutSheetState extends ConsumerState<CheckoutSheet> {
                             ],
                           ),
                         ),
-                        Text(Money.etb(_total),
-                            style: theme.textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w700)),
                         const SizedBox(width: 10),
                         Icon(Icons.chevron_right_rounded,
                             size: 20, color: theme.colorScheme.onSurfaceVariant),

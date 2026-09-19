@@ -16,6 +16,25 @@ class Api {
 
   SupabaseClient get _sb => Supabase.instance.client;
 
+  // Ethiopian Business Time (EAT, UTC+3, no DST). All "today"/day boundaries
+  // must use this offset — the database stores UTC timestamps.
+  static const _eatOffset = Duration(hours: 3);
+
+  /// UTC instant of midnight at the start of the current Addis day.
+  static String addisTodayStartUtc() {
+    final nowEat = DateTime.now().toUtc().add(_eatOffset);
+    final midnightEat = DateTime.utc(nowEat.year, nowEat.month, nowEat.day);
+    return midnightEat.subtract(_eatOffset).toIso8601String();
+  }
+
+  /// Today's date (yyyy-MM-dd) as seen in Addis.
+  static String addisTodayDate() {
+    final nowEat = DateTime.now().toUtc().add(_eatOffset);
+    return '${nowEat.year.toString().padLeft(4, '0')}-'
+        '${nowEat.month.toString().padLeft(2, '0')}-'
+        '${nowEat.day.toString().padLeft(2, '0')}';
+  }
+
   // Ethiopian phone -> synthetic login email (0911000001 -> 0911000001@velo.app)
   static String emailForPhone(String phone) {
     var digits = phone.replaceAll(RegExp(r'[^\d]'), '');
@@ -165,14 +184,20 @@ class Api {
         'business_type': shop['business_type'],
         'language': shop['language'] ?? 'en',
         'plan': shop['plan'] ?? 'free',
+        'phone': shop['phone'] ?? '',
+        'address': shop['address'] ?? '',
+        'latitude': shop['latitude'],
+        'longitude': shop['longitude'],
         'telebirr_number': shop['telebirr_number'] ?? '',
         'cbe_number': shop['cbe_number'] ?? '',
         'accept_telebirr': shop['accept_telebirr'] != false,
         'accept_cbe': shop['accept_cbe'] != false,
         'accept_credit': shop['accept_credit'] != false,
         'receipt_footer': shop['receipt_footer'] ?? '',
-        'sells_products': true,
-        'sells_services': false,
+        // Derive from the business-type config so service-only shops
+        // (e.g. barbershops) get the right catalog behaviour.
+        'sells_products': config['sells_products'] == true,
+        'sells_services': config['sells_services'] == true,
         'config': config,
       };
 
@@ -424,13 +449,11 @@ class Api {
   // ---------------------------------------------------------------- staff
   Future<List<StaffMember>> staff() async {
     final rows = await _sb.from('staff').select().order('id');
-    // today's per-staff sales for the list badges
-    final since =
-        DateTime.now().toUtc().subtract(const Duration(hours: 24)).toIso8601String();
+    // Today's per-staff sales (Addis calendar day) for the list badges.
     final todayRows = await _sb
         .from('sales')
         .select('staff_id, total')
-        .gte('created_at', since)
+        .gte('created_at', addisTodayStartUtc())
         .neq('status', 'refunded');
     final count = <int, int>{};
     final total = <int, double>{};
@@ -511,8 +534,10 @@ class Api {
     String? search,
   }) async {
     var q = _sb.from('sales').select();
-    if (from != null) q = q.gte('created_at', '${from}T00:00:00');
-    if (to != null) q = q.lte('created_at', '${to}T23:59:59');
+    // Date strings are Addis-local calendar days — anchor the timestamps to
+    // EAT so day boundaries line up with the reports RPCs.
+    if (from != null) q = q.gte('created_at', '${from}T00:00:00+03:00');
+    if (to != null) q = q.lte('created_at', '${to}T23:59:59+03:00');
     if (staffId != null) q = q.eq('staff_id', staffId);
     if (method != null) q = q.eq('method', method);
     if (search != null && search.isNotEmpty) {
@@ -580,7 +605,7 @@ class Api {
             'amount': payload['amount'] ?? 0,
             'note': payload['note'] ?? '',
             if (payload['category'] != null) 'category_id': payload['category'],
-            'spent_date': DateTime.now().toIso8601String().substring(0, 10),
+            'spent_date': addisTodayDate(),
           })
           .select()
           .single();

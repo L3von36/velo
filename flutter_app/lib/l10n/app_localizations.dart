@@ -146,6 +146,42 @@ abstract class AppLocalizations {
   /// **'Welcome back'**
   String get welcomeBack;
 
+  /// No description provided for @loginSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Log in to manage your shop.'**
+  String get loginSubtitle;
+
+  /// No description provided for @itemsLowStock.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, =1{1 item is low on stock} other{{n} items are low on stock}}'**
+  String itemsLowStock(num n);
+
+  /// No description provided for @searchItemsPlain.
+  ///
+  /// In en, this message translates to:
+  /// **'Search items…'**
+  String get searchItemsPlain;
+
+  /// No description provided for @captureAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture again'**
+  String get captureAgain;
+
+  /// No description provided for @location.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get location;
+
+  /// No description provided for @notSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get notSet;
+
   /// No description provided for @signup.
   ///
   /// In en, this message translates to:
@@ -227,7 +263,7 @@ abstract class AppLocalizations {
   /// No description provided for @businessTypeTitle.
   ///
   /// In en, this message translates to:
-  /// **'What kind of business do you run?'**
+  /// **'What kind of business?'**
   String get businessTypeTitle;
 
   /// No description provided for @businessTypeSubtitle.

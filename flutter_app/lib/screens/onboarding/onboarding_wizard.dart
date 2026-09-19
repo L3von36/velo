@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -107,13 +109,17 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
       _locError = null;
     });
     try {
-      var perm = await Geolocator.checkPermission();
+      // Per-call guards: a hanging permission prompt or GPS fix must never
+      // leave this step stuck in the "Locating…" state.
+      var perm = await Geolocator.checkPermission().timeout(const Duration(seconds: 8));
       if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
+        perm = await Geolocator.requestPermission().timeout(const Duration(seconds: 25));
       }
       final denied =
           perm == LocationPermission.denied || perm == LocationPermission.deniedForever;
-      final serviceOn = denied ? false : await Geolocator.isLocationServiceEnabled();
+      final serviceOn = denied
+          ? false
+          : await Geolocator.isLocationServiceEnabled().timeout(const Duration(seconds: 8));
       if (denied || !serviceOn) {
         if (!mounted) return;
         setState(() {
@@ -127,10 +133,16 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
           accuracy: LocationAccuracy.high,
           timeLimit: Duration(seconds: 15),
         ),
-      );
+      ).timeout(const Duration(seconds: 25));
       if (!mounted) return;
       setState(() {
         _pos = pos;
+        _locating = false;
+      });
+    } on TimeoutException {
+      if (!mounted) return;
+      setState(() {
+        _locError = t(context).locationDenied;
         _locating = false;
       });
     } catch (_) {
@@ -375,7 +387,7 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
                   onPressed: _locating ? null : _captureLocation,
                   icon: const Icon(Icons.gps_fixed_rounded, size: 18),
                   label: Text(_pos != null
-                      ? t(context).useMyLocation
+                      ? t(context).captureAgain
                       : t(context).useMyLocation),
                 ),
               ],
@@ -476,8 +488,8 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
                 style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
           ),
           const SizedBox(height: 24),
-          _CheckRow(done: true, label: '${t(context).businessProfile} ✓'),
-          _CheckRow(done: true, label: '${t(context).locationTitle} ✓'),
+          _CheckRow(done: true, label: t(context).businessProfile),
+          _CheckRow(done: true, label: t(context).location),
           _CheckRow(done: false, label: t(context).addFirstItem),
           const SizedBox(height: 24),
           FilledButton(

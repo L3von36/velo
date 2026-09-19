@@ -88,7 +88,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
             child: TextField(
               controller: _search,
               decoration: InputDecoration(
-                hintText: t(context).searchItems,
+                hintText: t(context).searchItemsPlain,
                 prefixIcon: const Icon(Icons.search_rounded),
               ),
               onChanged: (v) => ref.read(catalogProvider.notifier).setSearch(v),

@@ -99,7 +99,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                         style: theme.textTheme.labelSmall),
                                   ],
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 12),
                                 Switch(
                                   value: s.active,
                                   onChanged: s.role == 'owner'

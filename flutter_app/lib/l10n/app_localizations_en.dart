@@ -33,6 +33,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get welcomeBack => 'Welcome back';
 
   @override
+  String get loginSubtitle => 'Log in to manage your shop.';
+
+  @override
+  String itemsLowStock(num n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n items are low on stock',
+      one: '1 item is low on stock',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get searchItemsPlain => 'Search items…';
+
+  @override
+  String get captureAgain => 'Capture again';
+
+  @override
+  String get location => 'Location';
+
+  @override
+  String get notSet => 'Not set';
+
+  @override
   String get signup => 'Create account';
 
   @override
@@ -72,7 +98,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wrongCredentials => 'Wrong phone or password';
 
   @override
-  String get businessTypeTitle => 'What kind of business do you run?';
+  String get businessTypeTitle => 'What kind of business?';
 
   @override
   String get businessTypeSubtitle =>

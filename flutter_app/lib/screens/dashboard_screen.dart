@@ -268,7 +268,7 @@ class _OwnerDashboard extends ConsumerWidget {
                           child: Text(
                             ok
                                 ? t(context).allStockedUp
-                                : '${d.lowStockCount} ${t(context).items.toLowerCase()} ${t(context).lowStock.toLowerCase()}',
+                                : t(context).itemsLowStock(d.lowStockCount),
                             style: theme.textTheme.bodyLarge
                                 ?.copyWith(fontWeight: FontWeight.w600),
                           ),

@@ -59,6 +59,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
     try {
       await ref.read(sessionProvider.notifier).login(norm, _password.text);
+      // Success: reveal whatever the root router now renders (HomeShell).
+      // If this login screen was pushed on top of the app (e.g. from signup),
+      // it must be popped — otherwise the user stays stuck on the form even
+      // though the session is live.
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
+      }
     } catch (e) {
       setState(() => _error = e.toString().replaceFirst('ApiException: ', ''));
     } finally {
@@ -123,7 +130,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 style: theme.textTheme.headlineSmall
                     ?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
-            Text(t(context).tagline,
+            Text(t(context).loginSubtitle,
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             const SizedBox(height: 20),
@@ -446,9 +453,9 @@ class _HeroPills extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
+              color: Colors.white.withValues(alpha: 0.18),
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white24),
+              border: Border.all(color: Colors.white38),
             ),
             child: Icon(_items[i], size: 20, color: Colors.white),
           ),
