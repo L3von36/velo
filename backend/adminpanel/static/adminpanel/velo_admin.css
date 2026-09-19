@@ -820,11 +820,25 @@ html.dark .vp-trend-down { color: #F87171; }
     min-width: 0;
   }
 
-  /* date hierarchy: smaller, single tidy wrap row */
+  /* date hierarchy: ONE tidy row — links scroll horizontally instead of
+     wrapping 4+ lines at the top of long changelists (mobile audit finding) */
   #changelist .toplinks,
   .toplinks {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
     font-size: 11px;
     line-height: 1.5;
+    padding-bottom: 2px;
+  }
+  .toplinks a,
+  .toplinks span {
+    flex: none;
+    white-space: nowrap;
   }
 
   /* page gutters: keep content near the edges on phones */
@@ -950,3 +964,26 @@ html.dark .vp-chip-gold { color: #FBBF24; }
   .vp-heartbeat { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
   .vp-hb-tag { margin-left: 0; }
 }
+
+/* ---------- v2.2.0 per-tenant staleness pills (upsell call sheet) ------
+   Same color language as the heartbeat: green = rang recently, gold =
+   going quiet, red = too quiet, grey = never sold. --------------------- */
+.vp-stale {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--vp-muted) 12%, transparent);
+  color: var(--vp-muted);
+}
+.vp-stale-fresh { background: color-mix(in srgb, #16803C 14%, transparent); color: #16803C; }
+html.dark .vp-stale-fresh { color: #4ADE80; }
+.vp-stale-cooling { background: rgba(180, 83, 9, .12); color: #B45309; }
+html.dark .vp-stale-cooling { color: #FBBF24; }
+.vp-stale-silent { background: rgba(179, 38, 30, .12); color: #B3261E; }
+html.dark .vp-stale-silent { color: #F87171; }
+.vp-stale-never { background: color-mix(in srgb, var(--vp-muted) 12%, transparent); color: var(--vp-muted); }

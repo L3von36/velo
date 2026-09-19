@@ -820,25 +820,11 @@ html.dark .vp-trend-down { color: #F87171; }
     min-width: 0;
   }
 
-  /* date hierarchy: ONE tidy row — links scroll horizontally instead of
-     wrapping 4+ lines at the top of long changelists (mobile audit finding) */
+  /* date hierarchy: smaller, single tidy wrap row */
   #changelist .toplinks,
   .toplinks {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 6px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    white-space: nowrap;
     font-size: 11px;
     line-height: 1.5;
-    padding-bottom: 2px;
-  }
-  .toplinks a,
-  .toplinks span {
-    flex: none;
-    white-space: nowrap;
   }
 
   /* page gutters: keep content near the edges on phones */

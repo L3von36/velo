@@ -21,6 +21,11 @@ v2.0.0 additions — MONEY RADAR (revenue intelligence):
 - Platform benchmark: per-tenant percentile of 30-day revenue vs the
   platform median, so the owner can spot outliers in both directions.
 
+v2.2.0 addition — CALL-SHEET STALENESS:
+- Every upsell target carries its own hours-silent pill (fresh / cooling /
+  silent / never) so the owner sees per-tenant staleness in hours, not
+  just the platform-wide heartbeat.
+
 v2.1.0 addition — PLATFORM HEARTBEAT:
 - Watches the platform as a whole, complementing the per-tenant churn logic:
   hours since the last ring of the register (live < 24h / cooling 24–48h /
@@ -272,7 +277,10 @@ with m as (
            extract(day from now() - sh.created_at)::int as age_days
     from public.shops sh
 )
-select m.*, sh.name, sh.plan, sh.business_type, sh.is_suspended, sh.created_at
+select m.*, sh.name, sh.plan, sh.business_type, sh.is_suspended, sh.created_at,
+       case when m.last_sale is null then null
+            else extract(epoch from (now() - m.last_sale)) / 3600.0
+       end as hours_silent
 from m join public.shops sh on sh.id = m.id
 """
 
@@ -354,6 +362,20 @@ def _classify(row: dict, median30: float) -> dict:
             "benchmark_pct": pct, "rev30": rev30, "prev30": prev30,
             "cnt30": cnt30, "days_silent": days_silent,
             "rev_life": rev_life, "price_now": price_now}
+
+
+def _staleness(hours):
+    """v2.2.0 — per-tenant staleness band + display text (pure, testable).
+    fresh < 24h / cooling 24-48h / silent 48h+ / never sold. Mirrors the
+    heartbeat's platform bands so one color language carries from the
+    platform pulse down to each revenue call."""
+    if hours is None:
+        return "never", "never sold"
+    if hours < 24:
+        return "fresh", f"{hours:.0f}h ago"
+    if hours < 48:
+        return "cooling", f"{hours:.0f}h ago"
+    return "silent", f"{round(hours / 24)}d ago"
 
 
 def _sale_streak(days: list, today) -> tuple[int, bool]:
@@ -514,6 +536,10 @@ def money_radar() -> dict:
             "last_sale": r["last_sale"],
             "is_new": r["age_days"] <= 7,
         })
+        # v2.2.0 — per-tenant staleness in HOURS (the call-sheet lens).
+        hs = r.get("hours_silent")
+        c["hours_silent"] = hs
+        c["silent_band"], c["silent_text"] = _staleness(hs)
         kinds = {"upsell": 0, "winback": 1, "churn": 2}
         c["signals"] = sorted(c["signals"], key=lambda s: kinds.get(s["kind"], 9))
         tenants.append(c)

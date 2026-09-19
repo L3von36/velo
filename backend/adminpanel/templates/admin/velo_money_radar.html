@@ -65,7 +65,7 @@
     <table class="vp-table">
       <thead><tr>
         <th>Tenant</th><th>Now</th><th>Recommended</th>
-        <th class="vp-num">Upside /mo</th><th>Why</th><th>Health</th><th></th>
+        <th class="vp-num">Upside /mo</th><th>Why</th><th>Last sale</th><th>Health</th><th></th>
       </tr></thead>
       <tbody>
         {% for t in radar.upsells %}
@@ -76,6 +76,9 @@
           <td><span class="vp-tag vp-tag-green">{{ t.signals.0.plan }}</span></td>
           <td class="vp-num"><b>ETB {{ t.signals.0.upside }}</b></td>
           <td class="vp-dim">{{ t.signals.0.why }}</td>
+          <td><span class="vp-stale vp-stale-{{ t.silent_band }}"
+                     {% if t.last_sale %}title="last sale {{ t.last_sale }}"{% endif %}
+              >{{ t.silent_text }}</span></td>
           <td>
             <div class="vp-health-line">
               <span class="vp-health-score vp-health-{{ t.band }}">{{ t.health }}</span>
