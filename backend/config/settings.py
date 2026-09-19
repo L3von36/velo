@@ -41,6 +41,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://*.space-z.ai",
     "https://*.onrender.com",
     "https://novelwolde.pythonanywhere.com",
+    "https://*.vercel.app",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
@@ -91,7 +92,7 @@ _database = {
     "PASSWORD": os.environ["VELO_DB_PASSWORD"],
     "HOST": os.environ["VELO_DB_HOST"],
     "PORT": os.environ.get("VELO_DB_PORT", "5432"),
-    "CONN_MAX_AGE": 120,
+    "CONN_MAX_AGE": int(os.environ.get("VELO_CONN_MAX_AGE", "120")),
     "OPTIONS": {"sslmode": "require"},
     "ATOMIC_REQUESTS": False,
 }
@@ -107,7 +108,8 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+_static_root_env = os.environ.get("VELO_STATIC_ROOT")
+STATIC_ROOT = Path(_static_root_env) if _static_root_env else BASE_DIR / "staticfiles"
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},

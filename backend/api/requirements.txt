@@ -1,0 +1,4 @@
+# Vercel serverless runtime deps (Django 5.2 LTS = widest Python compatibility)
+Django>=5.2,<5.3
+psycopg[binary]>=3.2
+whitenoise>=6.7
