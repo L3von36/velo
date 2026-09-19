@@ -28,3 +28,4 @@ flutter_app/android/key.properties
 
 # Django admin
 backend/staticfiles/
+.vercel/
