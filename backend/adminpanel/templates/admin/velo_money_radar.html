@@ -1,0 +1,186 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="vp">
+
+  {# ---------- hero ---------- #}
+  <div class="vp-hero">
+    <div>
+      <h1>Money Radar</h1>
+      <p>Revenue intelligence computed live from tenant sales, catalog and billing · median 30-day revenue ETB {{ radar.median30|floatformat:0 }}</p>
+    </div>
+    <div class="vp-hero-badges">
+      <span class="vp-chip vp-chip-green"><span class="material-symbols-outlined">radar</span> {{ radar.tenants|length }} tenants analysed</span>
+      <span class="vp-chip"><span class="material-symbols-outlined">speed</span> avg health {{ radar.avg_health }}/100</span>
+    </div>
+  </div>
+
+  {# ---------- pipeline summary ---------- #}
+  <div class="vp-cards vp-cards-tight">
+    <div class="vp-card vp-card-accent">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-green">trending_up</span>Upsell pipeline</div>
+      <div class="vp-v">ETB {{ radar.pipeline_mrr }}</div>
+      <div class="vp-s"><b>ARR</b> ETB {{ radar.pipeline_arr }} · ready-to-convert tenants</div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-green">favorite</span>Healthy</div>
+      <div class="vp-v">{{ radar.bands.healthy }}</div>
+      <div class="vp-s">tenants scoring 75+</div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-gold">visibility</span>Watch</div>
+      <div class="vp-v">{{ radar.bands.watch }}</div>
+      <div class="vp-s">50–74 · keep an eye</div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-red">warning</span>At risk</div>
+      <div class="vp-v">{{ radar.bands.at_risk }}</div>
+      <div class="vp-s">25–49 · reach out this week</div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-red">report</span>Critical</div>
+      <div class="vp-v">{{ radar.bands.critical }}</div>
+      <div class="vp-s">below 25 · call today</div>
+    </div>
+  </div>
+
+  {# ---------- upsell pipeline ---------- #}
+  <div class="vp-section-title">
+    <h2><span class="material-symbols-outlined">rocket_launch</span> Upsell radar — free tenants performing like paid plans</h2>
+    <span class="vp-muted">ranked by the monthly revenue you leave on the table</span>
+  </div>
+  <div class="vp-panel">
+    {% if radar.upsells %}
+    <table class="vp-table">
+      <thead><tr>
+        <th>Tenant</th><th>Now</th><th>Recommended</th>
+        <th class="vp-num">Upside /mo</th><th>Why</th><th>Health</th><th></th>
+      </tr></thead>
+      <tbody>
+        {% for t in radar.upsells %}
+        <tr>
+          <td><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ t.id }}/change/">{{ t.name }}</a>
+              {% if t.is_new %}<span class="vp-tag vp-tag-green">new</span>{% endif %}</td>
+          <td><span class="vp-tag">{{ t.plan }}</span></td>
+          <td><span class="vp-tag vp-tag-green">{{ t.signals.0.plan }}</span></td>
+          <td class="vp-num"><b>ETB {{ t.signals.0.upside }}</b></td>
+          <td class="vp-dim">{{ t.signals.0.why }}</td>
+          <td>
+            <div class="vp-health-line">
+              <span class="vp-health-score vp-health-{{ t.band }}">{{ t.health }}</span>
+              <div class="vp-progress"><div class="vp-progress-bar" style="width: {{ t.health }}%"></div></div>
+            </div>
+          </td>
+          <td class="vp-num"><a class="vp-btn vp-btn-ghost" href="/admin/adminpanel/shop/{{ t.id }}/change/">Upgrade →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="vp-empty">No upgrade-ready tenants yet — as free tenants grow their volume, they will surface here automatically.</p>
+    {% endif %}
+  </div>
+
+  {# ---------- churn risk & win-back ---------- #}
+  <div class="vp-grid2">
+    <div class="vp-panel">
+      <div class="vp-panel-head">
+        <h2><span class="material-symbols-outlined">directions_run</span> Churn risk — was active, going quiet</h2>
+        <span class="vp-muted">silent 14d+ · biggest drop first</span>
+      </div>
+      {% if radar.churn %}
+      <table class="vp-table">
+        <thead><tr><th>Tenant</th><th>Plan</th><th>Silent</th><th>Signal</th><th>Health</th></tr></thead>
+        <tbody>
+          {% for t in radar.churn %}
+          <tr>
+            <td><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ t.id }}/change/">{{ t.name }}</a></td>
+            <td><span class="vp-tag">{{ t.plan }}</span></td>
+            <td><span class="vp-tag vp-tag-red">{{ t.signals.0.days_silent }}d</span></td>
+            <td class="vp-dim">{{ t.signals.0.why }}</td>
+            <td><span class="vp-health-score vp-health-{{ t.band }}">{{ t.health }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="vp-empty">Nobody going quiet — retention looks good.</p>{% endif %}
+    </div>
+
+    <div class="vp-panel">
+      <div class="vp-panel-head">
+        <h2><span class="material-symbols-outlined">replay</span> Win-back — highest lifetime revenue, silent 30d+</h2>
+        <span class="vp-muted">cheapest revenue to recover</span>
+      </div>
+      {% if radar.winback %}
+      <table class="vp-table">
+        <thead><tr><th>Tenant</th><th class="vp-num">Lifetime</th><th>Silent</th><th>Health</th></tr></thead>
+        <tbody>
+          {% for t in radar.winback %}
+          <tr>
+            <td><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ t.id }}/change/">{{ t.name }}</a></td>
+            <td class="vp-num"><b>ETB {{ t.rev_life|floatformat:0 }}</b></td>
+            <td><span class="vp-tag vp-tag-red">{{ t.days_silent }}d</span></td>
+            <td><span class="vp-health-score vp-health-{{ t.band }}">{{ t.health }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="vp-empty">No win-back targets — churned tenants have little history yet.</p>{% endif %}
+    </div>
+  </div>
+
+  {# ---------- full tenant board ---------- #}
+  <div class="vp-section-title">
+    <h2><span class="material-symbols-outlined">monitor_heart</span> Every tenant — health &amp; benchmark</h2>
+    <span class="vp-muted">benchmark: 30-day revenue vs platform median (100% ≈ 2× median)</span>
+  </div>
+  <div class="vp-panel">
+    <table class="vp-table">
+      <thead><tr>
+        <th>Tenant</th><th>Type</th><th>Plan</th>
+        <th class="vp-num">30d revenue</th><th class="vp-num">Trend</th>
+        <th class="vp-num">vs median</th><th class="vp-num">Items</th>
+        <th class="vp-num">Users</th><th>Status</th><th>Health</th>
+      </tr></thead>
+      <tbody>
+        {% for t in radar.tenants %}
+        <tr>
+          <td><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ t.id }}/change/">{{ t.name }}</a>
+              {% if t.is_new %}<span class="vp-tag vp-tag-green">new</span>{% endif %}</td>
+          <td><span class="vp-tag">{{ t.business_type }}</span></td>
+          <td><span class="vp-tag {% if t.price_now > 0 %}vp-tag-green{% endif %}">{{ t.plan }}</span></td>
+          <td class="vp-num">{{ t.rev30|floatformat:0 }}</td>
+          <td class="vp-num">
+            {% if t.prev30 > 0 and t.rev30 > t.prev30 %}<span class="vp-trend vp-trend-up">▲ {{ t.rev30|floatformat:0 }}</span>
+            {% elif t.prev30 > 0 %}<span class="vp-trend vp-trend-down">▼ from {{ t.prev30|floatformat:0 }}</span>
+            {% else %}<span class="vp-dim">—</span>{% endif %}
+          </td>
+          <td class="vp-num">{% if t.benchmark_pct %}<b>{{ t.benchmark_pct }}%</b>{% else %}<span class="vp-dim">—</span>{% endif %}</td>
+          <td class="vp-num">{{ t.items_cnt }}</td>
+          <td class="vp-num">{{ t.users_cnt }}</td>
+          <td>
+            {% if t.is_suspended %}<span class="vp-pill vp-pill-suspended">suspended</span>
+            {% elif t.band == "healthy" %}<span class="vp-pill vp-pill-active">healthy</span>
+            {% elif t.band == "watch" %}<span class="vp-pill vp-pill-pending_verification">watch</span>
+            {% elif t.band == "at_risk" %}<span class="vp-pill vp-pill-refunded">at risk</span>
+            {% else %}<span class="vp-pill vp-pill-suspended">critical</span>{% endif %}
+          </td>
+          <td>
+            <div class="vp-health-line">
+              <span class="vp-health-score vp-health-{{ t.band }}">{{ t.health }}</span>
+              <div class="vp-progress"><div class="vp-progress-bar" style="width: {{ t.health }}%"></div></div>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="10" class="vp-empty">No tenants yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+{{ block.super }}
+{% endblock %}

@@ -744,3 +744,106 @@ table {
 #changelist-filter select {
   font-size: 0.75rem;
 }
+
+/* ==========================================================================
+   v2.0.0 — MONEY RADAR + MOBILE RESPONSIVE PASS
+   ========================================================================== */
+
+/* ---------- health score chips ---------- */
+.vp-health-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 110px;
+}
+.vp-health-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--color-base-500) 14%, transparent);
+  color: var(--color-font-default-light, #475467);
+}
+html.dark .vp-health-score { color: var(--color-font-default-dark, #98a2b3); }
+.vp-health-healthy { background: color-mix(in srgb, #16803C 15%, transparent); color: #16803C; }
+html.dark .vp-health-healthy { color: #4ADE80; }
+.vp-health-watch { background: rgba(180, 83, 9, .12); color: #B45309; }
+html.dark .vp-health-watch { color: #FBBF24; }
+.vp-health-at_risk { background: rgba(179, 38, 30, .12); color: #B3261E; }
+html.dark .vp-health-at_risk { color: #F87171; }
+.vp-health-critical { background: rgba(179, 38, 30, .22); color: #B3261E; }
+html.dark .vp-health-critical { color: #FCA5A5; }
+
+/* trend arrows in the radar table */
+.vp-trend { font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.vp-trend-up { color: #16803C; }
+html.dark .vp-trend-up { color: #4ADE80; }
+.vp-trend-down { color: #B3261E; }
+html.dark .vp-trend-down { color: #F87171; }
+
+/* warning-flavoured progress bar (retention alerts) */
+.vp-progress-warn {
+  background: linear-gradient(90deg, #F59E0B, #B45309);
+}
+
+/* ---------- MOBILE RESPONSIVE (<= 640px) --------------------------------
+   Unfold handles form stacking and the off-canvas nav. What it does NOT do:
+   scroll wide changelist tables (they clip), or tame the date hierarchy.
+   These rules fix exactly that, without touching desktop density.        */
+
+@media (max-width: 640px) {
+  /* changelist tables scroll horizontally instead of clipping columns */
+  #changelist .results,
+  #changelist {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #changelist table {
+    min-width: 620px;
+  }
+
+  /* dashboard panel tables get the same scroll safety */
+  .vp-panel {
+    overflow-x: auto;
+  }
+  .vp-panel .vp-table {
+    min-width: 520px;
+  }
+  .vp-panel .vp-rank,
+  .vp-panel .vp-empty {
+    min-width: 0;
+  }
+
+  /* date hierarchy: smaller, single tidy wrap row */
+  #changelist .toplinks,
+  .toplinks {
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  /* page gutters: keep content near the edges on phones */
+  #content {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  /* radar action buttons inside tables: full-width tap targets */
+  .vp-table .vp-btn {
+    height: 26px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 400px) {
+  .vp-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+  .vp-v { font-size: 18px; }
+}

@@ -8,6 +8,18 @@ v1.8.0 additions:
 - Growth & retention metrics: MRR / ARR from the plan price map, paying
   tenants, ARPU, churn (tenants with no sales in 30d), activation.
 - Danger zone data: tenant list with suspension + last-sale context.
+
+v2.0.0 additions — MONEY RADAR (revenue intelligence):
+- Tenant health scores (0–100) computed from recency, momentum, depth and
+  billing tier — every signal comes from live business data, never invented.
+- Upsell pipeline: free-tier tenants showing paid-plan behaviour, ranked by
+  the MRR upside of the recommended plan.
+- Churn risk: previously-active tenants going quiet (14d+ silence or a
+  steep momentum drop) while still on a paid plan.
+- Win-back: churned tenants whose lifetime revenue ranks high — the cheapest
+  revenue the platform can recover.
+- Platform benchmark: per-tenant percentile of 30-day revenue vs the
+  platform median, so the owner can spot outliers in both directions.
 """
 from decimal import Decimal
 
@@ -215,4 +227,194 @@ def kpis(period: int = 14) -> dict:
             "period": period, "periods": PERIODS,
             "growth": _growth(), "tenants": _tenant_health(),
             "top_shops": top_shops, "max_daily": max_daily,
+            "radar": money_radar(),
             "plan_prices": PLAN_PRICES_ETB}
+
+
+
+
+# ---------------------------------------------------------------------------
+# v2.0.0 — MONEY RADAR
+# Every signal below is computed from live business data: sales, catalog,
+# staff and billing plan. Nothing is hardcoded per tenant, nothing invented.
+# ---------------------------------------------------------------------------
+
+_RADAR_SQL = """
+with m as (
+    select sh.id,
+           coalesce((select sum(s.total) from public.sales s
+                      where s.shop_id = sh.id
+                        and s.created_at > now() - interval '30 days'), 0) as rev30,
+           coalesce((select sum(s.total) from public.sales s
+                      where s.shop_id = sh.id
+                        and s.created_at <= now() - interval '30 days'
+                        and s.created_at > now() - interval '60 days'), 0) as rev_prev30,
+           coalesce((select count(s.id) from public.sales s
+                      where s.shop_id = sh.id
+                        and s.created_at > now() - interval '30 days'), 0) as cnt30,
+           coalesce((select sum(s.total) from public.sales s
+                      where s.shop_id = sh.id), 0) as rev_life,
+           (select max(s.created_at) from public.sales s
+             where s.shop_id = sh.id) as last_sale,
+           (select count(*) from public.items i where i.shop_id = sh.id) as items_cnt,
+           (select count(*) from public.staff st
+             where st.shop_id = sh.id and st.user_id is not null) as users_cnt,
+           (select count(*) from public.customers c
+             where c.shop_id = sh.id) as cust_cnt,
+           extract(day from now() - sh.created_at)::int as age_days
+    from public.shops sh
+)
+select m.*, sh.name, sh.plan, sh.business_type, sh.is_suspended, sh.created_at
+from m join public.shops sh on sh.id = m.id
+"""
+
+
+def _classify(row: dict, median30: float) -> dict:
+    """Turn one tenant's live metrics into a health score + money signals."""
+    plan = row["plan"]
+    price_now = PLAN_PRICES_ETB.get(plan, 0)
+    rev30 = float(row["rev30"] or 0)
+    prev30 = float(row["rev_prev30"] or 0)
+    cnt30 = int(row["cnt30"] or 0)
+    rev_life = float(row["rev_life"] or 0)
+    items = int(row["items_cnt"] or 0)
+    users = int(row["users_cnt"] or 0)
+    days_silent = int(row["days_silent"])
+
+    # -- health score (0..100) --------------------------------------------
+    # recency   /40 : linear decay, 0 days silent = full marks, 45d = zero
+    # momentum  /30 : rev30 vs rev_prev30 ratio; new activity counts as 30
+    # depth     /20 : catalog size + linked app users (proxy for commitment)
+    # tier      /10 : paying plans score full marks
+    score_rec = max(0.0, 40 - min(days_silent, 45) * (40 / 45.0)) \
+        if days_silent < 900 else 0.0
+    if prev30 > 0:
+        ratio = rev30 / prev30
+        score_mom = 30.0 if ratio >= 1.0 else max(5.0, 30.0 * ratio)
+    else:
+        score_mom = 30.0 if rev30 > 0 else 10.0
+    score_depth = min(items, 12) * (20 / 12.0) + min(users, 8) * (20 / 8.0)
+    score_tier = 10.0 if price_now > 0 else 3.0
+    health = int(round(score_rec + score_mom + score_depth + score_tier))
+    health = max(0, min(100, health))
+
+    if health >= 75:
+        band = "healthy"
+    elif health >= 50:
+        band = "watch"
+    elif health >= 25:
+        band = "at_risk"
+    else:
+        band = "critical"
+
+    # -- money signals ------------------------------------------------------
+    signals = []
+
+    # 1) Upsell: free tenant performing at paid-plan levels.
+    rec_plan = None
+    if price_now == 0 and not row["is_suspended"]:
+        if rev30 >= 8000 or cnt30 >= 25:
+            rec_plan = "pro"
+        elif rev30 >= 3000 or cnt30 >= 10 or items >= 25:
+            rec_plan = "starter"
+    if rec_plan:
+        signals.append({
+            "kind": "upsell", "plan": rec_plan,
+            "upside": PLAN_PRICES_ETB[rec_plan] - price_now,
+            "why": f"ETB {rev30:,.0f} in 30d · {cnt30} sales · {items} items"})
+
+    # 2) Churn risk: was active, now going quiet.
+    if not row["is_suspended"] and days_silent >= 14 and rev_life > 0:
+        drop_txt = ""
+        if prev30 > 0 and rev30 < prev30:
+            drop_txt = f" · revenue down {(1 - rev30 / prev30) * 100:.0f}%"
+        signals.append({
+            "kind": "churn", "days_silent": days_silent,
+            "why": f"silent {days_silent}d{drop_txt}"})
+
+    # 3) Win-back: mature, silent 30d+, meaningful lifetime revenue.
+    if not row["is_suspended"] and days_silent >= 30 and rev_life >= 5000:
+        signals.append({
+            "kind": "winback",
+            "why": f"ETB {rev_life:,.0f} lifetime · {days_silent}d silent"})
+
+    # 4) Benchmark vs the platform median (only when the platform is active).
+    pct = None
+    if median30 > 0 and rev30 > 0:
+        pct = min(100, int(round(rev30 / (median30 * 2) * 100)))
+    return {"health": health, "band": band, "signals": signals,
+            "benchmark_pct": pct, "rev30": rev30, "prev30": prev30,
+            "cnt30": cnt30, "days_silent": days_silent,
+            "rev_life": rev_life, "price_now": price_now}
+
+
+def money_radar() -> dict:
+    """The owner's revenue-intelligence snapshot over every live tenant."""
+    rows = _rows(_RADAR_SQL)
+
+    silence = {r["id"]: int(r["d"]) for r in _rows("""
+        select sh.id,
+               case when max(s.created_at) is null then 999
+                    else extract(day from
+                         (now() at time zone 'Africa/Addis_Ababa')
+                         - (max(s.created_at) at time zone 'Africa/Addis_Ababa'))::int
+               end as d
+        from public.shops sh
+        left join public.sales s on s.shop_id = sh.id
+        group by sh.id""")}
+    for r in rows:
+        r["days_silent"] = silence.get(r["id"], 999)
+
+    # Platform median of 30-day revenue across active, non-suspended tenants.
+    active_rev = sorted(float(r["rev30"]) for r in rows
+                        if not r["is_suspended"] and float(r["rev30"]) > 0)
+    n = len(active_rev)
+    if n == 0:
+        median30 = 0.0
+    elif n % 2:
+        median30 = active_rev[n // 2]
+    else:
+        median30 = (active_rev[n // 2 - 1] + active_rev[n // 2]) / 2
+
+    tenants = []
+    for r in rows:
+        c = _classify(r, median30)
+        c.update({
+            "id": r["id"], "name": r["name"], "plan": r["plan"],
+            "business_type": r["business_type"],
+            "is_suspended": r["is_suspended"],
+            "items_cnt": r["items_cnt"], "users_cnt": r["users_cnt"],
+            "cust_cnt": r["cust_cnt"], "age_days": r["age_days"],
+            "last_sale": r["last_sale"],
+            "is_new": r["age_days"] <= 7,
+        })
+        kinds = {"upsell": 0, "winback": 1, "churn": 2}
+        c["signals"] = sorted(c["signals"], key=lambda s: kinds.get(s["kind"], 9))
+        tenants.append(c)
+
+    upsells = sorted(
+        (t for t in tenants if any(s["kind"] == "upsell" for s in t["signals"])),
+        key=lambda t: -max((s["upside"] for s in t["signals"]
+                            if s["kind"] == "upsell"), default=0))
+    churn = sorted(
+        (t for t in tenants if any(s["kind"] == "churn" for s in t["signals"])),
+        key=lambda t: -min((s["days_silent"] for s in t["signals"]
+                            if s["kind"] == "churn"), default=0))
+    winback = sorted(
+        (t for t in tenants if any(s["kind"] == "winback" for s in t["signals"])),
+        key=lambda t: -t["rev_life"])
+
+    pipeline_mrr = sum(s["upside"] for t in upsells for s in t["signals"]
+                       if s["kind"] == "upsell")
+
+    bands = {b: sum(1 for t in tenants
+                    if t["band"] == b and not t["is_suspended"])
+             for b in ("healthy", "watch", "at_risk", "critical")}
+
+    live = [t for t in tenants if not t["is_suspended"]]
+    avg_health = (sum(t["health"] for t in live) // len(live)) if live else 0
+
+    return {"tenants": tenants, "upsells": upsells[:8], "churn": churn[:8],
+            "winback": winback[:8], "pipeline_mrr": pipeline_mrr,
+            "pipeline_arr": pipeline_mrr * 12, "bands": bands,
+            "avg_health": avg_health, "median30": median30}

@@ -381,9 +381,12 @@ class StockMovement(models.Model):
 
 
 class AdminAuthUser(models.Model):
-    """Read-only projection of Supabase auth.users (private adminpanel schema
-    view). NEVER exposes password hashes or secrets — only what the owner may
-    see: identity + activity."""
+    """Projection of Supabase auth.users (private adminpanel schema view).
+    NEVER exposes password hashes or secrets — only what the owner may
+    see and manage: identity, activity, and the ban lever (banned_until).
+    The view is a simple single-table view, so UPDATEs (ban/unban) flow
+    through it to auth.users; the view owner performs the underlying write.
+    """
     id = models.UUIDField(primary_key=True)
     email = models.CharField(max_length=254, null=True, blank=True)
     phone = models.CharField(max_length=32, null=True, blank=True)
@@ -391,6 +394,7 @@ class AdminAuthUser(models.Model):
     created_at = models.DateTimeField()
     last_sign_in_at = models.DateTimeField(null=True, blank=True)
     raw_user_meta_data = models.JSONField(null=True, blank=True)
+    banned_until = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         managed = False
