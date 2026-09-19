@@ -83,8 +83,8 @@ class VeloAdminSite(UnfoldAdminSite):
             except (TypeError, ValueError):
                 shop_id = 0
         if not shop_id:
-            self.message_user(request, "Choose a tenant to suspend first.",
-                              level=messages.ERROR)
+            messages.add_message(request, messages.ERROR,
+                                 "Choose a tenant to suspend first.")
             return HttpResponseRedirect("/admin/")
         note = (request.POST.get("note") or "").strip()
         action = "suspended" if suspend else "restored"
@@ -97,11 +97,10 @@ class VeloAdminSite(UnfoldAdminSite):
             row = cur.fetchone()
         name = row[0] if row else f"#{shop_id}"
         level = messages.WARNING if suspend else messages.SUCCESS
-        self.message_user(
-            request,
+        messages.add_message(
+            request, level,
             f"Tenant “{name}” {action}."
-            + (" Reason noted." if suspend and note else ""),
-            level=level)
+            + (" Reason noted." if suspend and note else ""))
         return HttpResponseRedirect(request.POST.get("next") or "/admin/")
 
     def suspend_tenant(self, request, shop_id=None):
