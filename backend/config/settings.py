@@ -145,7 +145,7 @@ UNFOLD = {
     "SITE_TITLE": "Velo Admin",
     "SITE_HEADER": "Velo Owner Console",
     "SITE_SUBHEADER": "Live platform data · Addis Ababa time",
-    "SITE_VERSION": "v2.4.0",
+    "SITE_VERSION": "v2.5.0",
     "SITE_URL": "/admin/",
     "SITE_LOGO": "/static/adminpanel/velo.svg",
     "SITE_FAVICONS": [

@@ -275,7 +275,7 @@ html.dark .vp-pill-test { color: var(--color-base-400, #98a2b3); }
   min-height: 2px;
   border-radius: 4px 4px 2px 2px;
   background: linear-gradient(180deg, var(--color-primary-400), var(--color-primary-600));
-  transition: opacity .15s ease;
+  transition: opacity .15s ease, filter .15s ease;
 }
 .vp-bar:hover { opacity: .82; }
 .vp-bar.is-zero { background: color-mix(in srgb, var(--color-base-500) 22%, transparent); min-height: 2px; }
@@ -511,26 +511,27 @@ html.dark fieldset.vp-danger-zone {
 }
 
 /* ---------- custom login page ---------- */
-.vp-login .vp-login-head { margin-bottom: 20px; }
+.vp-login .vp-login-head { margin-bottom: 24px; }
 .vp-login-eyebrow {
   display: inline-block;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: .12em;
   text-transform: uppercase;
   color: var(--color-primary-600);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 html.dark .vp-login-eyebrow { color: var(--color-primary-400); }
 .vp-login-title {
-  font-size: 20px;
+  font-size: 28px;            /* v2.5.0: display surface, was over-shrunk to 20px */
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
   color: var(--color-font-important-light, #101828);
-  margin: 0 0 4px;
+  margin: 0 0 6px;
 }
 html.dark .vp-login-title { color: var(--color-font-important-dark, #f2f4f7); }
-.vp-login-sub { font-size: 12.5px; color: var(--color-base-500, #6b7280); margin: 0; }
+.vp-login-sub { font-size: 13.5px; color: var(--color-base-500, #6b7280); margin: 0; }
 .vp-login-foot {
   display: flex;
   align-items: center;
@@ -1124,3 +1125,175 @@ html.dark .vp-act-blue { color: #93C5FD; }
   .vp-suspend-inline { flex-wrap: wrap; }
   .vp-suspend-inline input { flex: 1 1 140px; }
 }
+
+/* ==========================================================================
+   v2.5.0 — LOGIN UX AUDIT + DASHBOARD POLISH
+   Login: dead "Return to site" link removed (template), theme-switch tap
+   target, compact brand mark < 1280px, show-password toggle, autofill fix,
+   focus rings, error-note polish, submit hover/disabled. Everything scoped
+   to .vp-login so the rest of the admin keeps the dense scale.
+   Dashboard: CSS-only affordances (row hover, chart hover, seg contrast).
+   ========================================================================== */
+
+/* ---------- login topbar: theme switch only (no dead link) -------------- */
+.vp-login .vp-login-topbar { z-index: 20; }
+
+/* Unfold's trigger anchor is 18px tall — far too small a tap target.
+   The trigger is the direct child anchor of the dropdown root; the menu
+   items deeper inside are NOT touched. */
+.vp-login .vp-login-topbar > div > a {
+  height: 32px;
+  width: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: background .15s ease;
+}
+.vp-login .vp-login-topbar > div > a:hover {
+  background: color-mix(in srgb, var(--color-base-500) 14%, transparent);
+}
+html.dark .vp-login .vp-login-topbar > div > a:hover {
+  background: color-mix(in srgb, var(--color-base-400) 18%, transparent);
+}
+/* the dropdown uses top-7 (=21px with the 3px unit) which would now sit
+   under the 32px trigger — move it below the button */
+.vp-login .vp-login-topbar nav {
+  top: 38px;
+  right: 0;
+}
+
+/* ---------- login: compact brand mark (identity below 1280px) -----------
+   The brand panel is hidden below xl, so tablet/phone had zero Velo
+   identity. A small white card (same treatment as the brand panel's logo
+   card) sits above the eyebrow; at >= 1280px it hides to avoid a double
+   logo next to the big panel card. -------------------------------------- */
+.vp-login-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid var(--color-base-200, #e4e7ec);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .06);
+  margin-bottom: 14px;
+}
+.vp-login-mark img { width: 30px; height: 30px; display: block; }
+html.dark .vp-login-mark { border-color: transparent; box-shadow: 0 2px 8px rgba(0, 0, 0, .45); }
+@media (min-width: 1280px) {
+  .vp-login-mark { display: none; }
+}
+
+/* ---------- login: show-password toggle --------------------------------- */
+/* the wrap is the containing block; the button anchors to the input row:
+   label (19px) + gap (6px) puts the ~33px input at y=25, so a 27px button
+   centered on it starts at y=28. Top-anchored so field errors below the
+   input never shift it. --------------------------------------------------- */
+.vp-login .vp-pw-wrap { position: relative; }
+.vp-login .vp-pw-wrap input { padding-right: 42px; }
+.vp-pw-toggle {
+  position: absolute;
+  top: 28px;
+  right: 3px;
+  width: 27px;
+  height: 27px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-base-500, #6a7282);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.vp-pw-toggle:hover {
+  background: color-mix(in srgb, var(--color-base-500) 12%, transparent);
+  color: var(--color-base-700, #364153);
+}
+html.dark .vp-pw-toggle { color: var(--color-base-400, #99a1af); }
+html.dark .vp-pw-toggle:hover {
+  background: color-mix(in srgb, var(--color-base-400) 16%, transparent);
+  color: var(--color-base-200, #e4e7ec);
+}
+.vp-pw-toggle .material-symbols-outlined { font-size: 18px; width: 18px; height: 18px; }
+
+/* ---------- login: focus-visible rings (same green language as suspend
+   inputs) ---------------------------------------------------------------- */
+.vp-login a:focus-visible,
+.vp-login button:focus-visible,
+.vp-login input:focus-visible,
+.vp-login select:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-primary-500) 55%, transparent);
+  outline-offset: 1px;
+}
+
+/* ---------- login: Chrome autofill must not paint white on dark --------- */
+.vp-login input:-webkit-autofill,
+.vp-login input:-webkit-autofill:hover,
+.vp-login input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  -webkit-text-fill-color: var(--color-font-default-light, #364153);
+  caret-color: var(--color-font-default-light, #364153);
+  transition: background-color 9999s ease-in-out 0s;
+}
+html.dark .vp-login input:-webkit-autofill,
+html.dark .vp-login input:-webkit-autofill:hover,
+html.dark .vp-login input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--color-base-900, #101828) inset;
+  -webkit-text-fill-color: var(--color-font-default-dark, #d1d5dc);
+  caret-color: var(--color-font-important-dark, #f2f4f7);
+}
+
+/* ---------- login: error notes (Unfold renders .errornote fine, add a
+   border + size nudge so it matches the panel language) ------------------ */
+.vp-login .errornote {
+  border: 1px solid color-mix(in srgb, #B3261E 35%, transparent);
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+html.dark .vp-login .errornote {
+  border-color: color-mix(in srgb, #F87171 35%, transparent);
+}
+
+/* ---------- login: submit hover / press / double-submit disabled -------- */
+.vp-login .submit-row {
+  transition: filter .15s ease, transform .1s ease, opacity .15s ease;
+}
+.vp-login .submit-row:hover { filter: brightness(1.07); }
+.vp-login .submit-row:active { filter: brightness(.97); transform: translateY(1px); }
+.vp-login .submit-row:disabled { opacity: .55; cursor: not-allowed; filter: none; transform: none; }
+
+/* ---------- login: optical vertical centering ---------------------------
+   items-center on min-h-screen leaves the block dead-center with big dead
+   bands; a bottom-biased padding lifts it ~half the padding. Small on
+   short viewports so nothing clips at 390x480 (container is min-height,
+   it grows and scrolls — nothing is unreachable). ------------------------ */
+.vp-login .vp-bias-up { padding-bottom: 2.25rem; }
+@media (min-height: 700px) {
+  .vp-login .vp-bias-up { padding-bottom: 3.75rem; }
+}
+
+/* ---------- dashboard: table row hover tint (CSS-only) ------------------- */
+.vp-table tbody td { transition: background-color .12s ease; }
+.vp-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--color-primary-500) 6%, transparent);
+}
+html.dark .vp-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--color-primary-500) 10%, transparent);
+}
+
+/* ---------- dashboard: chart column hover affordance --------------------
+   Data already lives in the title attr (native tooltip); this adds a soft
+   visual echo on the hovered column. ------------------------------------- */
+.vp-col:hover .vp-bar { filter: brightness(1.12); }
+.vp-col:hover .vp-lab { color: var(--color-primary-700); }
+html.dark .vp-col:hover .vp-lab { color: var(--color-primary-300); }
+
+/* ---------- dashboard: segmented control inactive contrast (dark) --------
+   base-400 measured muddy at 11.5px; base-300 keeps the active/inactive
+   distinction but reads crisply. ------------------------------------------ */
+html.dark .vp-seg-btn:not(.is-active) { color: var(--color-base-300, #d1d5dc); }

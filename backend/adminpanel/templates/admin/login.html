@@ -2,11 +2,16 @@
 {% load i18n static unfold %}
 
 {% comment %}
-Velo custom login (v1.9.0 — compact enterprise density).
+Velo custom login (v2.5.0 — UX audit pass).
 Replaces Unfold's cropped background-image treatment (the logo was being
 scaled with `background-size: cover`, chopping off the right side of the
 "V") with a purpose-built split screen: form on the left, contained brand
 panel on the right. Nothing is ever cropped again.
+
+v2.5.0: dropped the dead "Return to site" link (SITE_URL=/admin/ just
+reloads this page when logged out) — the header is now the theme switch
+only; compact logo mark on the form column below 1280px; show-password
+toggle; double-submit guard. Styling lives in velo_admin.css (.vp-login-*).
 {% endcomment %}
 
 {% block extrastyle %}
@@ -22,11 +27,21 @@ panel on the right. Nothing is ever cropped again.
     <div id="page" class="vp-login bg-white flex min-h-screen dark:bg-base-900">
 
         {# ---------- left: form ---------- #}
-        <div class="flex grow items-center justify-center mx-auto px-4 relative">
+        <div class="vp-bias-up flex grow items-center justify-center mx-auto px-4 relative">
+
+            {# theme switch only — the old header's "Return to site" link (SITE_URL=/admin/) just reloaded this page #}
+            <div class="vp-login-topbar absolute left-0 m-4 right-0 top-0 flex flex-row items-center justify-end">
+                {% include "unfold/helpers/theme_switch_dropdown.html" %}
+            </div>
+
             <div class="w-full sm:w-96">
 
                 {# ---------- heading ---------- #}
                 <div class="vp-login-head">
+                    {# compact brand mark — carries Velo identity below 1280px where the brand panel is hidden #}
+                    <div class="vp-login-mark">
+                        <img src="/static/adminpanel/velo.svg" alt="Velo" width="30" height="30" draggable="false">
+                    </div>
                     <span class="vp-login-eyebrow">Velo Owner Console</span>
                     <h1 class="vp-login-title">Welcome back</h1>
                     <p class="vp-login-sub">Sign in to manage tenants, revenue and platform health.</p>
@@ -35,7 +50,7 @@ panel on the right. Nothing is ever cropped again.
                 {% include "unfold/helpers/messages.html" %}
 
                 {% if form.errors or form.non_field_errors %}
-                    <div class="flex flex-col gap-4 mb-8 *:mb-0">
+                    <div role="alert" class="flex flex-col gap-4 mb-8 *:mb-0">
                         {% include "unfold/helpers/messages/errornote.html" with errors=form.errors %}
                         {% include "unfold/helpers/messages/error.html" with errors=form.non_field_errors %}
                         {% if user.is_authenticated %}
@@ -51,7 +66,15 @@ panel on the right. Nothing is ever cropped again.
                 <form action="{{ app_path }}" method="post" id="login-form" class="vp-login-form">
                     {% csrf_token %}
                     {% include "unfold/helpers/field.html" with field=form.username %}
-                    {% include "unfold/helpers/field.html" with field=form.password %}
+
+                    {# relative wrapper: anchors the show-password button to the input row #}
+                    <div class="vp-pw-wrap">
+                        {% include "unfold/helpers/field.html" with field=form.password %}
+                        <button type="button" class="vp-pw-toggle" data-pw-target="id_password"
+                                aria-label="Show password" aria-pressed="false" title="Show password">
+                            <span class="material-symbols-outlined" aria-hidden="true">visibility</span>
+                        </button>
+                    </div>
 
                     <div class="flex flex-col gap-3 mt-6">
                         {% component "unfold/components/button.html" with submit=1 variant="primary" class="submit-row w-full" %}
@@ -65,8 +88,6 @@ panel on the right. Nothing is ever cropped again.
                     Owner access only · every action is logged
                 </p>
             </div>
-
-            {% include "unfold/helpers/unauthenticated_header.html" %}
         </div>
 
         {# ---------- right: brand panel (contained, never cropped) ---------- #}
@@ -96,9 +117,50 @@ panel on the right. Nothing is ever cropped again.
             </ul>
 
             <div class="vp-login-meta">
-                <span class="vp-chip">v1.9.0</span>
+                <span class="vp-chip">v2.5.0</span>
                 <span>Addis Ababa time · data served live</span>
             </div>
         </aside>
+
+        <script>
+            (function () {
+                "use strict";
+
+                /* show / hide password — vanilla, no frameworks */
+                var toggle = document.querySelector(".vp-pw-toggle");
+                if (toggle) {
+                    var pw = document.getElementById(toggle.getAttribute("data-pw-target"));
+                    var icon = toggle.querySelector(".material-symbols-outlined");
+                    if (pw && icon) {
+                        toggle.addEventListener("click", function () {
+                            var show = pw.type === "password";
+                            pw.type = show ? "text" : "password";
+                            icon.textContent = show ? "visibility_off" : "visibility";
+                            toggle.setAttribute("aria-pressed", show ? "true" : "false");
+                            toggle.setAttribute("aria-label", show ? "Hide password" : "Show password");
+                            toggle.setAttribute("title", show ? "Hide password" : "Show password");
+                        });
+                    }
+                }
+
+                /* double-submit guard: disable the button once the form is
+                   actually submitting (HTML5 validation failures never fire
+                   submit, so the button stays usable); pageshow re-enables
+                   it when the browser restores the page from bfcache. */
+                var form = document.getElementById("login-form");
+                if (form) {
+                    form.addEventListener("submit", function () {
+                        var b = form.querySelector('button[type="submit"]');
+                        if (b) { b.disabled = true; }
+                    });
+                    window.addEventListener("pageshow", function (e) {
+                        if (e.persisted) {
+                            var b = form.querySelector('button[type="submit"]');
+                            if (b) { b.disabled = false; }
+                        }
+                    });
+                }
+            })();
+        </script>
     </div>
 {% endblock %}
