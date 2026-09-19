@@ -6,6 +6,9 @@
     <!-- Barcode scanning at the POS (mobile_scanner / CameraX). -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <!-- Shop location capture during business registration (geolocator). -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <application
         android:label="Velo"
         android:name="${applicationName}"

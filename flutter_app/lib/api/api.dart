@@ -660,6 +660,10 @@ class Api {
           'accept_credit': payload['accept_credit'],
         if (payload['receipt_footer'] != null)
           'receipt_footer': payload['receipt_footer'],
+        if (payload['latitude'] != null)
+          'latitude': (payload['latitude'] as num).toDouble(),
+        if (payload['longitude'] != null)
+          'longitude': (payload['longitude'] as num).toDouble(),
       };
       final row =
           await _sb.from('shops').update(patch).eq('id', shopId).select().single();

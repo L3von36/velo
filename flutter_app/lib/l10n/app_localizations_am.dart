@@ -151,6 +151,43 @@ class AppLocalizationsAm extends AppLocalizations {
   String get barcodeNotFound => 'በዚህ ባርኮድ ዕቃ አልተገኘም';
 
   @override
+  String get kindTitle => 'ንግድዎ ምን ያቀርባል?';
+
+  @override
+  String get kindSubtitle => 'ይህ ካታሎግዎን፣ የሽያጭ ማያያዣዎን እና ሪፖርቶችዎን ይቀርጻል።';
+
+  @override
+  String get kindBoth => 'ዕቃዎችና አገልግሎት';
+
+  @override
+  String get kindProductsSub => 'የሚከማቹ ዕቃዎች፣ ዋጋ እና ግምት';
+
+  @override
+  String get kindServicesSub => 'ቀጠሮዎች እና የሚከፈል ሥራ';
+
+  @override
+  String get kindBothSub => 'ሁለቱም አይነት — ድብልቅ ንግድ';
+
+  @override
+  String get locationTitle => 'ሱቅዎ የት ነው?';
+
+  @override
+  String get locationSubtitle =>
+      'የGPS መገኛዎን ይውሰዱ ወይም ቦታውን ይጻፉ — በክፍያ ማረጋገጫዎች ላይ ያገለግላል።';
+
+  @override
+  String get useMyLocation => 'የአሁኑን መገኛዬን ይጠቀሙ';
+
+  @override
+  String get locationCaptured => 'መገኛ ተገኝቷል';
+
+  @override
+  String get locationDenied => 'የመገኛ ፈቃድ አልተሰጠም — አድራሻውን መጻፍ ይችላሉ';
+
+  @override
+  String get locating => 'በመፈለግ ላይ…';
+
+  @override
   String get appointments => 'ቀጠሮዎች';
 
   @override

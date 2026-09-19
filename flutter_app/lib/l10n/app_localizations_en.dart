@@ -152,6 +152,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String get barcodeNotFound => 'No item with this barcode';
 
   @override
+  String get kindTitle => 'What does your business sell?';
+
+  @override
+  String get kindSubtitle => 'This shapes your catalog, POS and reports.';
+
+  @override
+  String get kindBoth => 'Products & services';
+
+  @override
+  String get kindProductsSub => 'Stock items, prices and inventory';
+
+  @override
+  String get kindServicesSub => 'Appointments and billable work';
+
+  @override
+  String get kindBothSub => 'A mix of both — hybrid shops';
+
+  @override
+  String get locationTitle => 'Where is your shop?';
+
+  @override
+  String get locationSubtitle =>
+      'Capture your GPS location or type the area — used on records and receipts.';
+
+  @override
+  String get useMyLocation => 'Use my current location';
+
+  @override
+  String get locationCaptured => 'Location captured';
+
+  @override
+  String get locationDenied =>
+      'Location unavailable — you can type the address instead';
+
+  @override
+  String get locating => 'Locating…';
+
+  @override
   String get appointments => 'Appointments';
 
   @override

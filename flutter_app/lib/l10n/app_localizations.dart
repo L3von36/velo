@@ -380,6 +380,78 @@ abstract class AppLocalizations {
   /// **'No item with this barcode'**
   String get barcodeNotFound;
 
+  /// No description provided for @kindTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What does your business sell?'**
+  String get kindTitle;
+
+  /// No description provided for @kindSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This shapes your catalog, POS and reports.'**
+  String get kindSubtitle;
+
+  /// No description provided for @kindBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'Products & services'**
+  String get kindBoth;
+
+  /// No description provided for @kindProductsSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock items, prices and inventory'**
+  String get kindProductsSub;
+
+  /// No description provided for @kindServicesSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Appointments and billable work'**
+  String get kindServicesSub;
+
+  /// No description provided for @kindBothSub.
+  ///
+  /// In en, this message translates to:
+  /// **'A mix of both — hybrid shops'**
+  String get kindBothSub;
+
+  /// No description provided for @locationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Where is your shop?'**
+  String get locationTitle;
+
+  /// No description provided for @locationSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture your GPS location or type the area — used on records and receipts.'**
+  String get locationSubtitle;
+
+  /// No description provided for @useMyLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Use my current location'**
+  String get useMyLocation;
+
+  /// No description provided for @locationCaptured.
+  ///
+  /// In en, this message translates to:
+  /// **'Location captured'**
+  String get locationCaptured;
+
+  /// No description provided for @locationDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Location unavailable — you can type the address instead'**
+  String get locationDenied;
+
+  /// No description provided for @locating.
+  ///
+  /// In en, this message translates to:
+  /// **'Locating…'**
+  String get locating;
+
   /// No description provided for @appointments.
   ///
   /// In en, this message translates to:

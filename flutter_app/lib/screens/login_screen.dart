@@ -9,8 +9,10 @@ import '../utils/format.dart';
 import '../widgets/common.dart';
 import 'signup_screen.dart';
 
-/// A3 — phone-first login (matches how Ethiopians register for services).
-/// v2: branded gradient panel on wide screens, card-less mobile layout.
+/// A3 + landing page — phone-first login (matches how Ethiopians register
+/// for services). Premium "Emerald Pro" landing: gradient hero with brand
+/// story + feature pills on top, clean sign-in sheet below; split panel
+/// with the full pitch on wide screens.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key, this.initialPhone});
 
@@ -64,30 +66,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _toggleLanguage() async {
+    final am = Localizations.localeOf(context).languageCode == 'am';
+    final next = am ? 'en' : 'am';
+    await ref.read(sessionProvider.notifier).setLanguage(next);
+    ref.read(localeProvider.notifier).set(next);
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final wide = MediaQuery.of(context).size.width > 800;
 
+    // ── Sign-in form (shared by both layouts) ────────────────────────────
     final form = SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 22),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(height: wide ? 0 : 24),
-            Center(child: BrandMark(size: 76, radius: 22)),
-            const SizedBox(height: 20),
-            Text(t(context).welcomeBack,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.headlineMedium),
-            const SizedBox(height: 4),
-            Text(t(context).tagline,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            const SizedBox(height: 28),
+            Container(
+              width: 44,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 18),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.outlineVariant,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
             if (_error != null) ...[
               Container(
                 padding: const EdgeInsets.all(12),
@@ -110,6 +119,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 14),
             ],
+            Text(t(context).welcomeBack,
+                style: theme.textTheme.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text(t(context).tagline,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 20),
             TextField(
               controller: _phone,
               keyboardType: TextInputType.phone,
@@ -119,7 +136,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 prefixIcon: const Icon(Icons.phone_android_rounded),
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             TextField(
               controller: _password,
               obscureText: _obscure,
@@ -135,11 +152,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 18),
             FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
+                backgroundColor: AppTheme.seed,
+                foregroundColor: Colors.white,
               ),
               onPressed: _loading ? null : _submit,
               child: _loading
@@ -151,7 +168,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           color: theme.colorScheme.onPrimary))
                   : Text(t(context).login),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             TextButton(
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const SignupScreen()),
@@ -159,7 +176,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Text('${t(context).noAccount} ${t(context).signup}'),
             ),
             if (_demos.isNotEmpty) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
@@ -173,7 +190,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               ..._demos.map((d) => _DemoTile(d: d, onPick: _fillDemo)),
             ],
           ],
@@ -182,23 +199,94 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
 
     if (!wide) {
+      // ── Mobile: gradient hero + white sheet ────────────────────────────
+      // The gradient fills the whole body so the sheet's rounded top
+      // corners reveal it — clean overlap without transform hacks.
       return Scaffold(
-        body: SafeArea(
-          child: Center(child: form),
+        body: DecoratedBox(
+          decoration: const BoxDecoration(gradient: AppTheme.authGradient),
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12, top: 4),
+                    child: _LanguagePill(onToggle: _toggleLanguage),
+                  ),
+                ),
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.85, end: 1),
+                  duration: const Duration(milliseconds: 420),
+                  curve: Curves.easeOutBack,
+                  builder: (context, s, child) =>
+                      Transform.scale(scale: s, child: child),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: const BrandMark(size: 64, radius: 18),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text('Velo',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 29,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.9)),
+                      const SizedBox(height: 4),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          t(context).tagline,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.8),
+                              fontSize: 13.5),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const _HeroPills(),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
+                // Sheet with rounded top — carries the form (theme-aware).
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerLowest,
+                      borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(AppTheme.rXl)),
+                    ),
+                    child: SafeArea(
+                      top: false,
+                      child: Center(child: form),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
 
-    // Desktop: branded gradient panel + form (PRD A3 platform note).
+    // ── Wide: branded pitch panel + form ──────────────────────────────────
     return Scaffold(
       body: Row(
         children: [
           Expanded(
             child: DecoratedBox(
-              decoration: const BoxDecoration(gradient: AppTheme.authGradient),
+              decoration: const BoxDecoration(gradient: AppTheme.heroGradient),
               child: Stack(
                 children: [
-                  // Subtle decorative circles (solid fills, cheap to render).
                   Positioned(
                     right: -80,
                     top: -80,
@@ -211,23 +299,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
+                      constraints: const BoxConstraints(maxWidth: 460),
                       child: Padding(
                         padding: const EdgeInsets.all(40),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              child: const Icon(Icons.storefront_rounded,
-                                  size: 44, color: Colors.white),
+                            Row(
+                              children: [
+                                const BrandMark(size: 46, radius: 13),
+                                const SizedBox(width: 12),
+                                Text('Velo',
+                                    style: theme.textTheme.headlineSmall?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.5)),
+                              ],
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 26),
                             Text('One app.\nEvery kind of shop.',
                                 style: theme.textTheme.headlineMedium?.copyWith(
                                     color: Colors.white, height: 1.2)),
@@ -235,10 +325,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             Text(t(context).tagline,
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                     color: Colors.white.withValues(alpha: 0.75))),
-                            const SizedBox(height: 32),
-                            _feature(Icons.bolt_rounded, 'Sell in seconds — POS built for speed'),
-                            _feature(Icons.people_alt_rounded, 'Track customer credit with a tamper-proof ledger'),
-                            _feature(Icons.insights_rounded, 'Know your numbers — daily profit & best sellers'),
+                            const SizedBox(height: 30),
+                            _feature(Icons.bolt_rounded,
+                                'Sell in seconds — POS built for speed'),
+                            _feature(Icons.document_scanner_rounded,
+                                'Scan barcodes straight into the cart'),
+                            _feature(Icons.people_alt_rounded,
+                                'Track customer credit with a tamper-proof ledger'),
+                            _feature(Icons.insights_rounded,
+                                'Know your numbers — daily profit & best sellers'),
+                            const SizedBox(height: 22),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _badge('ETB', Icons.payments_rounded),
+                                _badge('አማርኛ · English', Icons.translate_rounded),
+                                _badge('Telebirr · CBE', Icons.account_balance_rounded),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -289,10 +394,102 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
+  Widget _badge(String label, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: Colors.white70),
+          const SizedBox(width: 6),
+          Text(label,
+              style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
   void _fillDemo(Map<String, dynamic> d) {
     _phone.text = '${d['phone']}';
     _password.text = '${d['password']}';
     setState(() => _error = null);
+  }
+}
+
+/// Row of glassy feature icons in the mobile hero.
+class _HeroPills extends StatelessWidget {
+  const _HeroPills();
+
+  static const _items = [
+    Icons.point_of_sale_rounded,
+    Icons.document_scanner_rounded,
+    Icons.people_alt_rounded,
+    Icons.insights_rounded,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (var i = 0; i < _items.length; i++) ...[
+          if (i > 0) const SizedBox(width: 12),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Icon(_items[i], size: 20, color: Colors.white),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Compact EN/አማ toggle pill for the hero corner.
+class _LanguagePill extends StatelessWidget {
+  const _LanguagePill({required this.onToggle});
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final am = Localizations.localeOf(context).languageCode == 'am';
+    return Material(
+      color: Colors.white.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onToggle,
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.translate_rounded,
+                  size: 14, color: Colors.white70),
+              const SizedBox(width: 6),
+              Text(am ? 'አማ' : 'EN',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
