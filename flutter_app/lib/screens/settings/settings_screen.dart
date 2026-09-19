@@ -50,7 +50,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     child: Text(
                       (tenant?.name.isNotEmpty ?? false) ? tenant!.name[0].toUpperCase() : '?',
                       style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.w800, fontSize: 22),
+                          color: Colors.white, fontWeight: FontWeight.w800, fontSize: 19.5),
                     ),
                   ),
                   const SizedBox(width: 14),

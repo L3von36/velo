@@ -444,7 +444,6 @@ class _ItemTile extends StatelessWidget {
                 child: Text(
                   '${item.stockQty}${item.unit == 'pc' ? '' : ' ${item.unit}'}',
                   style: theme.textTheme.labelSmall?.copyWith(
-                    fontSize: 10,
                     color: lowStock
                         ? AppTheme.warning
                         : theme.colorScheme.onSurfaceVariant,
@@ -551,7 +550,7 @@ class _CartPanel extends ConsumerWidget {
                     label: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Text('${t(context).charge} · ${Money.etb(cart.total)}',
-                          style: const TextStyle(fontSize: 16)),
+                          style: const TextStyle(fontSize: 14.5)),
                     ),
                   ),
                 ),
@@ -964,7 +963,7 @@ class _MobileCartBar extends StatelessWidget {
                           '${cart.itemCount}',
                           style: TextStyle(
                               color: theme.colorScheme.onPrimary,
-                              fontSize: 10,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.w800),
                         ),
                       ),

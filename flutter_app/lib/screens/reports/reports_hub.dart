@@ -246,7 +246,7 @@ class _TrendChart extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(p.length >= 10 ? p.substring(5) : p,
                       style: TextStyle(
-                          fontSize: 9, color: theme.colorScheme.onSurfaceVariant)),
+                          fontSize: 10.5, color: theme.colorScheme.onSurfaceVariant)),
                 );
               },
             ),
@@ -276,7 +276,7 @@ class _TrendChart extends StatelessWidget {
                     TextStyle(
                         color: theme.colorScheme.onPrimary,
                         fontWeight: FontWeight.w700,
-                        fontSize: 11)))
+                        fontSize: 11.5)))
                 .toList(),
           ),
         ),

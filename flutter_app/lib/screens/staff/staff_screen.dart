@@ -96,7 +96,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                                         style: theme.textTheme.titleSmall
                                             ?.copyWith(fontWeight: FontWeight.w800)),
                                     Text(t(context).mySalesToday,
-                                        style: theme.textTheme.labelSmall?.copyWith(fontSize: 9)),
+                                        style: theme.textTheme.labelSmall),
                                   ],
                                 ),
                                 const SizedBox(width: 8),

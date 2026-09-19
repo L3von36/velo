@@ -468,7 +468,7 @@ class AppTheme {
       badgeTheme: BadgeThemeData(
         backgroundColor: scheme.error,
         textStyle: base.textTheme.labelSmall
-            ?.copyWith(color: scheme.onError, fontSize: 10, fontFamilyFallback: fontFamilyFallback),
+            ?.copyWith(color: scheme.onError, fontSize: 10.5, fontFamilyFallback: fontFamilyFallback),
       ),
       scrollbarTheme: ScrollbarThemeData(
         radius: const Radius.circular(8),
