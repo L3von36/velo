@@ -1,0 +1,245 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="vp">
+
+  {# ---------- hero ---------- #}
+  <div class="vp-hero">
+    <div>
+      <h1>{{ t360.shop.name }} <span class="vp-dim">#{{ t360.shop.id }}</span></h1>
+      <p>Tenant 360 · every signal a call needs, read-only ·
+         {% if t360.shop.phone %}<a class="vp-link" href="tel:{{ t360.shop.phone }}">{{ t360.shop.phone }}</a>{% else %}no phone on file{% endif %}</p>
+    </div>
+    <div class="vp-hero-badges">
+      <span class="vp-chip"><span class="material-symbols-outlined">category</span> {{ t360.shop.business_type }}</span>
+      <span class="vp-chip vp-chip-green"><span class="material-symbols-outlined">workspace_premium</span> {{ t360.shop.plan }}</span>
+      {% if t360.t %}
+      <span class="vp-chip"><span class="material-symbols-outlined">favorite</span> health {{ t360.t.health }}/100 · {{ t360.t.band }}</span>
+      {% endif %}
+      {% if t360.shop.is_test %}<span class="vp-chip"><span class="material-symbols-outlined">science</span> test tenant</span>{% endif %}
+      {% if t360.shop.is_suspended %}<span class="vp-chip vp-chip-red"><span class="material-symbols-outlined">block</span> suspended</span>{% endif %}
+      <a class="vp-chip" href="/admin/adminpanel/shop/{{ t360.shop.id }}/change/" style="text-decoration:none"><span class="material-symbols-outlined">edit</span> Edit profile</a>
+      <a class="vp-chip" href="/admin/money-radar/" style="text-decoration:none"><span class="material-symbols-outlined">radar</span> Money Radar</a>
+    </div>
+  </div>
+
+  {% if t360.t %}
+  {# ---------- money cards ---------- #}
+  <div class="vp-cards vp-cards-tight">
+    <div class="vp-card vp-card-accent">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-green">trending_up</span>Revenue · 30 days</div>
+      <div class="vp-v">ETB {{ t360.t.rev30|floatformat:0 }}</div>
+      <div class="vp-s">
+        {% if t360.t.prev30 > 0 %}
+          {% if t360.t.rev30 >= t360.t.prev30 %}▲ from{% else %}▼ from{% endif %}
+          ETB {{ t360.t.prev30|floatformat:0 }} prior 30d
+        {% else %}first real month{% endif %}
+      </div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-blue">receipt_long</span>Sales · 30 days</div>
+      <div class="vp-v">{{ t360.t.cnt30 }}</div>
+      <div class="vp-s">avg ticket <b>ETB {% widthratio t360.t.rev30 t360.t.cnt30 1 %}</b>{% if t360.t.cnt30 == 0 %}—{% endif %}</div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-violet">savings</span>Lifetime revenue</div>
+      <div class="vp-v">ETB {{ t360.t.rev_life|floatformat:0 }}</div>
+      <div class="vp-s">joined {{ t360.shop.created_at|date:"M d Y" }}</div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-gold">schedule</span>Last sale</div>
+      <div class="vp-v">{{ t360.t.silent_text }}</div>
+      <div class="vp-s"><span class="vp-stale vp-stale-{{ t360.t.silent_band }}">{{ t360.t.silent_text }}</span> · silent {{ t360.t.days_silent }}d</div>
+    </div>
+  </div>
+
+  {% if t360.t.signals %}
+  <div class="vp-panel vp-360-signals">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">bolt</span> Money signals</h2>
+      <span class="vp-muted">computed by the Money Radar · live</span>
+    </div>
+    <div class="vp-plan-row">
+      {% for s in t360.t.signals %}
+      <span class="vp-chip {% if s.kind == 'upsell' %}vp-chip-green{% elif s.kind == 'churn' %}vp-chip-red{% else %}vp-chip-gold{% endif %}">
+        <span class="material-symbols-outlined">{% if s.kind == 'upsell' %}rocket_launch{% elif s.kind == 'churn' %}directions_run{% else %}replay{% endif %}</span>
+        {% if s.kind == 'upsell' %}upsell → {{ s.plan }} (+ETB {{ s.upside }}/mo){% elif s.kind == 'churn' %}churn risk · {{ s.why }}{% else %}win-back · {{ s.why }}{% endif %}
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  {# ---------- weekly revenue bars ---------- #}
+  <div class="vp-panel">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">bar_chart</span> Revenue — weekly, since joining</h2>
+      <span class="vp-muted">ETB per week · Addis Ababa</span>
+    </div>
+    {% if t360.max_weekly > 0 %}
+    <div class="vp-chart">
+      {% for r in t360.weekly %}
+      <div class="vp-col" title="{{ r.label }} — ETB {{ r.total|floatformat:2 }} ({{ r.cnt }} sales)">
+        <div class="vp-bar-track">
+          <div class="vp-bar{% if r.total == 0 %} is-zero{% endif %}" style="height: {% widthratio r.total t360.max_weekly 100 %}%"></div>
+        </div>
+        <div class="vp-lab{% if forloop.counter0|divisibleby:2 %}{% else %} vp-lab-hidden{% endif %}">{{ r.label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="vp-empty">No sales yet — this tenant has never rung the register.</p>
+    {% endif %}
+  </div>
+
+  {# ---------- catalog, team & rails ---------- #}
+  <div class="vp-grid2">
+    <div class="vp-panel">
+      <div class="vp-panel-head">
+        <h2><span class="material-symbols-outlined">shopping_bag</span> Top sellers — all time</h2>
+        {% if t360.t %}<span class="vp-muted">{{ t360.t.items_cnt }} items in catalog · {{ t360.t.cust_cnt }} customers</span>{% endif %}
+      </div>
+      {% if t360.top_items %}
+      <table class="vp-table">
+        <thead><tr><th>Item</th><th class="vp-num">Qty</th><th class="vp-num">Revenue</th></tr></thead>
+        <tbody>
+          {% for i in t360.top_items %}
+          <tr>
+            <td>{{ i.name_snapshot }}</td>
+            <td class="vp-num">{{ i.qty }}</td>
+            <td class="vp-num"><b>ETB {{ i.revenue|floatformat:0 }}</b></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="vp-empty">No items sold yet.</p>{% endif %}
+      <div class="vp-plan-row" style="margin-top:10px">
+        <span class="vp-chip {% if t360.shop.accept_telebirr %}vp-chip-green{% endif %}">Telebirr {% if t360.shop.telebirr_number %}· {{ t360.shop.telebirr_number }}{% endif %}</span>
+        <span class="vp-chip {% if t360.shop.accept_cbe %}vp-chip-green{% endif %}">CBE {% if t360.shop.cbe_number %}· {{ t360.shop.cbe_number }}{% endif %}</span>
+        <span class="vp-chip {% if t360.shop.accept_credit %}vp-chip-green{% endif %}">Credit book</span>
+        {% if t360.credit_out != "0.00" %}<span class="vp-chip vp-chip-gold">credit outstanding ETB {{ t360.credit_out }}</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="vp-panel">
+      <div class="vp-panel-head">
+        <h2><span class="material-symbols-outlined">badge</span> Team &amp; recent receipts</h2>
+        <span class="vp-muted">{{ t360.staff|length }} staff · {{ t360.customers }} customers</span>
+      </div>
+      {% if t360.staff %}
+      <table class="vp-table">
+        <thead><tr><th>Staff</th><th>Role</th><th>In app</th><th>Active</th></tr></thead>
+        <tbody>
+          {% for st in t360.staff %}
+          <tr>
+            <td>{{ st.name }}</td>
+            <td><span class="vp-tag">{{ st.role }}</span></td>
+            <td>{% if st.linked %}<span class="vp-pill vp-pill-active">linked</span>{% else %}<span class="vp-dim">—</span>{% endif %}</td>
+            <td>{% if st.active %}<span class="vp-pill vp-pill-active">yes</span>{% else %}<span class="vp-pill vp-pill-suspended">no</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="vp-empty">No staff records.</p>{% endif %}
+
+      <h3 class="vp-360-sub">Last 10 receipts</h3>
+      {% if t360.sales %}
+      <table class="vp-table">
+        <thead><tr><th>Receipt</th><th class="vp-num">Total</th><th>Method</th><th>Status</th><th>When</th></tr></thead>
+        <tbody>
+          {% for s in t360.sales %}
+          <tr>
+            <td class="vp-dim">#{{ s.receipt_number }}</td>
+            <td class="vp-num"><b>{{ s.total|floatformat:2 }}</b></td>
+            <td><span class="vp-tag">{{ s.method }}</span></td>
+            <td><span class="vp-pill vp-pill-{{ s.status }}">{{ s.status }}</span></td>
+            <td class="vp-dim">{{ s.created_at|date:"M d, H:i" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="vp-empty">No receipts yet.</p>{% endif %}
+    </div>
+  </div>
+
+  {# ---------- notes (CRM trail) ---------- #}
+  <div class="vp-panel">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">sticky_note_2</span> Notes — the relationship trail</h2>
+      <span class="vp-muted">founder-led sales memory · every entry is audited</span>
+    </div>
+    <form method="post" class="vp-note-form">
+      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+      <input type="hidden" name="action" value="note">
+      <textarea name="body" rows="2" required maxlength="2000"
+                placeholder="e.g. Called — wants Telebirr setup help, demo scheduled Fri 3pm…"></textarea>
+      <button type="submit" class="vp-btn vp-btn-primary"><span class="material-symbols-outlined">add</span> Add note</button>
+    </form>
+    {% if t360.notes %}
+    <div class="vp-notes">
+      {% for n in t360.notes %}
+      <div class="vp-note">
+        <div class="vp-note-meta"><b>{{ n.author }}</b> · {{ n.created_at|date:"M d Y, H:i" }}</div>
+        <div class="vp-note-body">{{ n.body }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="vp-empty">No notes yet — the first call note lands here.</p>
+    {% endif %}
+  </div>
+
+  {# ---------- quick actions (audited) ---------- #}
+  <div class="vp-panel vp-danger">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">bolt</span> Quick actions</h2>
+      <span class="vp-muted">every action lands in the owner audit trail</span>
+    </div>
+    <div class="vp-plan-row">
+      <form method="post" class="vp-inline-form">
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+        <input type="hidden" name="action" value="plan">
+        <span class="vp-muted">Move plan:</span>
+        {% for p, price in plan_choices.items %}
+        {% if p != t360.shop.plan %}
+        <button type="submit" name="plan" value="{{ p }}" class="vp-btn vp-btn-ghost">{{ p }} · {{ price }} ETB</button>
+        {% endif %}
+        {% endfor %}
+      </form>
+    </div>
+    <div class="vp-plan-row">
+      <form method="post" class="vp-inline-form">
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+        <input type="hidden" name="action" value="test">
+        {% if t360.shop.is_test %}
+        <input type="hidden" name="flag" value="0">
+        <button type="submit" class="vp-btn vp-btn-ghost"><span class="material-symbols-outlined">science</span> Unmark test tenant</button>
+        {% else %}
+        <input type="hidden" name="flag" value="1">
+        <button type="submit" class="vp-btn vp-btn-ghost"><span class="material-symbols-outlined">science</span> Mark as test tenant</button>
+        {% endif %}
+      </form>
+      {% if t360.shop.is_suspended %}
+      <form method="post" action="/admin/tenant/{{ t360.shop.id }}/restore/" class="vp-inline-form">
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+        <input type="hidden" name="next" value="/admin/tenant/{{ t360.shop.id }}/">
+        <button type="submit" class="vp-btn vp-btn-primary"><span class="material-symbols-outlined">play_circle</span> Restore access</button>
+      </form>
+      {% else %}
+      <form method="post" action="/admin/tenant/{{ t360.shop.id }}/suspend/" class="vp-inline-form vp-suspend-inline"
+            onsubmit="var v=this.note.value.trim();return confirm('Suspend “{{ t360.shop.name|escapejs }}”? Reason: '+(v||'(none)'));">
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+        <input type="hidden" name="next" value="/admin/tenant/{{ t360.shop.id }}/">
+        <input type="text" name="note" maxlength="200" placeholder="reason (kept on record)">
+        <button type="submit" class="vp-btn vp-btn-danger"><span class="material-symbols-outlined">block</span> Suspend</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+{{ block.super }}
+{% endblock %}

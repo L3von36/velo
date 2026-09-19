@@ -145,7 +145,7 @@ UNFOLD = {
     "SITE_TITLE": "Velo Admin",
     "SITE_HEADER": "Velo Owner Console",
     "SITE_SUBHEADER": "Live platform data · Addis Ababa time",
-    "SITE_VERSION": "v2.0.0",
+    "SITE_VERSION": "v2.4.0",
     "SITE_URL": "/admin/",
     "SITE_LOGO": "/static/adminpanel/velo.svg",
     "SITE_FAVICONS": [
@@ -163,6 +163,8 @@ UNFOLD = {
                 {"title": "Dashboard", "icon": "dashboard", "link": "/admin/"},
                 {"title": "Money Radar", "icon": "radar",
                  "link": "/admin/money-radar/"},
+                {"title": "Owner audit", "icon": "history",
+                 "link": "/admin/audit/"},
             ]},
             {"title": "Tenancy", "items": [
                 {"title": "Shops", "icon": "storefront",

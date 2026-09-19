@@ -1,0 +1,86 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="vp">
+
+  {# ---------- hero ---------- #}
+  <div class="vp-hero">
+    <div>
+      <h1>Owner audit</h1>
+      <p>Every privileged action taken through this console — who, what,
+         when, from where. The leaders' rule: logging is only compliance
+         when someone actually reads it.</p>
+    </div>
+    <div class="vp-hero-badges">
+      <span class="vp-chip vp-chip-green"><span class="material-symbols-outlined">verified_user</span> tamper-evident · append-only</span>
+      <span class="vp-chip"><span class="material-symbols-outlined">history</span> newest {{ entries|length }} entries</span>
+    </div>
+  </div>
+
+  {# ---------- filters ---------- #}
+  <div class="vp-panel">
+    <form method="get" class="vp-audit-filters">
+      <label>
+        <span>Action</span>
+        <select name="action">
+          <option value="">All actions</option>
+          {% for a in actions %}
+          <option value="{{ a }}" {% if a == f_action %}selected{% endif %}>{{ a }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="vp-grow">
+        <span>Search actor / target / details</span>
+        <input type="text" name="q" value="{{ f_q }}" placeholder="e.g. Merkato, suspend, owner…">
+      </label>
+      <button type="submit" class="vp-btn vp-btn-primary"><span class="material-symbols-outlined">filter_list</span> Filter</button>
+      {% if f_action or f_q %}<a class="vp-btn vp-btn-ghost" href="/admin/audit/">Clear</a>{% endif %}
+    </form>
+
+    {% if entries %}
+    <table class="vp-table vp-audit-table">
+      <thead><tr>
+        <th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Details</th><th>IP</th>
+      </tr></thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td class="vp-dim vp-nowrap">{{ e.created_at|date:"M d, H:i" }}</td>
+          <td><b>{{ e.actor }}</b></td>
+          <td>
+            {% if e.action == 'record.delete' %}
+            <span class="vp-act vp-act-red">{{ e.action }}</span>
+            {% elif e.action == 'tenant.suspend' %}
+            <span class="vp-act vp-act-red">{{ e.action }}</span>
+            {% elif e.action == 'user.ban' %}
+            <span class="vp-act vp-act-red">{{ e.action }}</span>
+            {% elif e.action == 'tenant.plan' %}
+            <span class="vp-act vp-act-green">{{ e.action }}</span>
+            {% elif e.action == 'tenant.restore' or e.action == 'user.unban' %}
+            <span class="vp-act vp-act-green">{{ e.action }}</span>
+            {% elif e.action == 'tenant.note' %}
+            <span class="vp-act vp-act-blue">{{ e.action }}</span>
+            {% else %}
+            <span class="vp-act">{{ e.action }}</span>
+            {% endif %}
+          </td>
+          <td>{{ e.target }}</td>
+          <td class="vp-dim">{{ e.details|default:"—" }}</td>
+          <td class="vp-dim vp-nowrap">{{ e.ip|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="vp-empty">
+      No audit entries {% if f_action or f_q %}match this filter{% else %}yet —
+      the next suspend, plan move, ban or note you make lands here{% endif %}.
+    </p>
+    {% endif %}
+  </div>
+
+</div>
+
+{{ block.super }}
+{% endblock %}

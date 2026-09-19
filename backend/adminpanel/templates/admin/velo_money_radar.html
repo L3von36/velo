@@ -14,6 +14,7 @@
       <span class="vp-chip vp-chip-green"><span class="material-symbols-outlined">radar</span> {{ radar.active_count }} active tenants</span>
       {% if radar.test_count %}<span class="vp-chip"><span class="material-symbols-outlined">science</span> {{ radar.test_count }} test excluded</span>{% endif %}
       <span class="vp-chip"><span class="material-symbols-outlined">speed</span> avg health {{ radar.avg_health }}/100</span>
+      <a class="vp-chip" href="/admin/money-radar/export.csv" style="text-decoration:none"><span class="material-symbols-outlined">download</span> Export call sheet CSV</a>
     </div>
   </div>
 
@@ -71,8 +72,9 @@
       <tbody>
         {% for t in radar.upsells %}
         <tr>
-          <td><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ t.id }}/change/">{{ t.name }}</a>
-              {% if t.is_new %}<span class="vp-tag vp-tag-green">new</span>{% endif %}</td>
+          <td><a class="vp-link-strong" href="/admin/tenant/{{ t.id }}/">{{ t.name }}</a>
+              {% if t.is_new %}<span class="vp-tag vp-tag-green">new</span>{% endif %}
+              {% if t.phone %}<span class="vp-dim vp-nowrap">· {{ t.phone }}</span>{% endif %}</td>
           <td><span class="vp-tag">{{ t.plan }}</span></td>
           <td><span class="vp-tag vp-tag-green">{{ t.signals.0.plan }}</span></td>
           <td class="vp-num"><b>ETB {{ t.signals.0.upside }}</b></td>
@@ -109,7 +111,7 @@
         <tbody>
           {% for t in radar.churn %}
           <tr>
-            <td><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ t.id }}/change/">{{ t.name }}</a></td>
+            <td><a class="vp-link-strong" href="/admin/tenant/{{ t.id }}/">{{ t.name }}</a></td>
             <td><span class="vp-tag">{{ t.plan }}</span></td>
             <td><span class="vp-tag vp-tag-red">{{ t.signals.0.days_silent }}d</span></td>
             <td class="vp-dim">{{ t.signals.0.why }}</td>
@@ -132,7 +134,7 @@
         <tbody>
           {% for t in radar.winback %}
           <tr>
-            <td><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ t.id }}/change/">{{ t.name }}</a></td>
+            <td><a class="vp-link-strong" href="/admin/tenant/{{ t.id }}/">{{ t.name }}</a></td>
             <td class="vp-num"><b>ETB {{ t.rev_life|floatformat:0 }}</b></td>
             <td><span class="vp-tag vp-tag-red">{{ t.days_silent }}d</span></td>
             <td><span class="vp-health-score vp-health-{{ t.band }}">{{ t.health }}</span></td>
@@ -160,7 +162,7 @@
       <tbody>
         {% for t in radar.tenants %}
         <tr>
-          <td><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ t.id }}/change/">{{ t.name }}</a>
+          <td><a class="vp-link-strong" href="/admin/tenant/{{ t.id }}/">{{ t.name }}</a>
               {% if t.is_new %}<span class="vp-tag vp-tag-green">new</span>{% endif %}</td>
           <td><span class="vp-tag">{{ t.business_type }}</span></td>
           <td><span class="vp-tag {% if t.price_now > 0 %}vp-tag-green{% endif %}">{{ t.plan }}</span></td>

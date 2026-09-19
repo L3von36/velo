@@ -19,6 +19,7 @@
       <span class="vp-chip vp-chip-green"><span class="material-symbols-outlined">database</span> Supabase · bypasses RLS</span>
       <span class="vp-chip"><span class="material-symbols-outlined">admin_panel_settings</span> Owner privileges · full control</span>
       <a class="vp-chip vp-chip-green" href="/admin/money-radar/" style="text-decoration:none"><span class="material-symbols-outlined">radar</span> Money Radar</a>
+      <a class="vp-chip" href="/admin/audit/" style="text-decoration:none"><span class="material-symbols-outlined">history</span> Owner audit</a>
       {% if kpi.cards.shops_suspended %}
       <span class="vp-chip vp-chip-red"><span class="material-symbols-outlined">block</span> {{ kpi.cards.shops_suspended }} suspended</span>
       {% endif %}
@@ -87,6 +88,57 @@
     </div>
   </div>
 
+  {# ---------- activation funnel (v2.4.0) ---------- #}
+  <div class="vp-section-title">
+    <h2><span class="material-symbols-outlined">filter_alt</span> Activation funnel</h2>
+    <span class="vp-muted">real tenants only · month-1 leaks are onboarding problems, not churn</span>
+  </div>
+  <div class="vp-panel">
+    <div class="vp-funnel">
+      {% for s in kpi.funnel.steps %}
+      <div class="vp-fstep" title="{{ s.label }}: {{ s.count }} tenants · {{ s.pct }}% of signups{% if s.step_pct %} · {{ s.step_pct }}% of previous step{% endif %}">
+        <div class="vp-fstep-meta">
+          <span class="vp-fstep-label">{{ s.label }}</span>
+          <span class="vp-fstep-val"><b>{{ s.count }}</b>{% if s.step_pct %} <span class="vp-dim">· {{ s.step_pct }}% of prev{% if s.step_pct < 60 %} ⚠{% endif %}</span>{% endif %}</span>
+        </div>
+        <div class="vp-fstep-track"><div class="vp-fstep-bar{% if s.step_pct and s.step_pct < 60 %} is-leak{% endif %}" style="width: {% widthratio s.pct 100 100 %}%"></div></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% if kpi.funnel.worst_step %}
+    <p class="vp-funnel-note"><span class="material-symbols-outlined">warning</span> Biggest leak: <b>{{ kpi.funnel.worst_step.label }}</b> — only {{ kpi.funnel.worst_step.step_pct }}% make it past the previous milestone. That is your next onboarding fix.</p>
+    {% endif %}
+  </div>
+
+  {# ---------- weekly cohorts (v2.4.0) ---------- #}
+  <div class="vp-panel">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">calendar_view_month</span> Weekly cohorts — who keeps selling</h2>
+      <span class="vp-muted">tenants that sold that week · W0 = signup week · · = not yet</span>
+    </div>
+    {% if kpi.cohorts %}
+    <table class="vp-table vp-cohort-table">
+      <thead><tr><th>Cohort</th><th class="vp-num">Size</th>
+        {% for cell in kpi.cohorts.0.cells %}<th class="vp-num">W{{ cell.n }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for c in kpi.cohorts %}
+        <tr>
+          <td><b>{{ c.label }}</b></td>
+          <td class="vp-num">{{ c.size }}</td>
+          {% for cell in c.cells %}
+          <td class="vp-num">
+            {% if cell.active == None %}<span class="vp-dim">·</span>
+            {% else %}<span class="vp-heat {% if cell.active == 0 %}vp-heat-0{% elif cell.pct < 34 %}vp-heat-1{% elif cell.pct < 67 %}vp-heat-2{% elif cell.pct < 100 %}vp-heat-3{% else %}vp-heat-4{% endif %}"
+                  title="{{ cell.active }} of {{ c.size }} sold in week {{ cell.n }} ({{ cell.pct }}%)">{{ cell.active }}</span>{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="vp-empty">No cohorts yet — signups from the last 6 weeks appear here.</p>{% endif %}
+  </div>
+
   {# ---------- Money Radar (revenue intelligence) ---------- #}
   <div class="vp-section-title">
     <h2><span class="material-symbols-outlined">radar</span> Money Radar</h2>
@@ -138,7 +190,7 @@
       {% for t in kpi.radar.upsells|slice:":5" %}
       <div class="vp-rank">
         <div class="vp-rank-line">
-          <span class="vp-rank-name"><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ t.id }}/change/">{{ t.name }}</a>
+          <span class="vp-rank-name"><a class="vp-link-strong" href="/admin/tenant/{{ t.id }}/">{{ t.name }}</a>
             <span class="vp-tag">{{ t.plan }}</span> → <span class="vp-tag vp-tag-green">{{ t.signals.0.plan }}</span></span>
           <span class="vp-rank-val"><b>+ETB {{ t.signals.0.upside }}/mo</b></span>
         </div>
@@ -157,7 +209,7 @@
       {% for t in kpi.radar.churn|slice:":5" %}
       <div class="vp-rank">
         <div class="vp-rank-line">
-          <span class="vp-rank-name"><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ t.id }}/change/">{{ t.name }}</a>
+          <span class="vp-rank-name"><a class="vp-link-strong" href="/admin/tenant/{{ t.id }}/">{{ t.name }}</a>
             <span class="vp-tag vp-tag-red">silent {{ t.signals.0.days_silent }}d</span></span>
           <span class="vp-rank-val">health <b>{{ t.health }}/100</b></span>
         </div>
@@ -216,7 +268,7 @@
         <tbody>
           {% for s in kpi.recent_shops %}
           <tr>
-            <td><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ s.id }}/change/">{{ s.name }}</a></td>
+            <td><a class="vp-link-strong" href="/admin/tenant/{{ s.id }}/">{{ s.name }}</a></td>
             <td><span class="vp-tag">{{ s.business_type }}</span></td>
             <td><span class="vp-tag vp-tag-green">{{ s.plan }}</span></td>
             <td>{% if s.is_suspended %}<span class="vp-pill vp-pill-suspended">suspended</span>{% else %}<span class="vp-pill vp-pill-active">active</span>{% endif %}</td>
@@ -261,7 +313,7 @@
       {% for t in kpi.top_shops %}
       <div class="vp-rank">
         <div class="vp-rank-line">
-          <span class="vp-rank-name"><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ t.id }}/change/">{{ t.name }}</a></span>
+          <span class="vp-rank-name"><a class="vp-link-strong" href="/admin/tenant/{{ t.id }}/">{{ t.name }}</a></span>
           <span class="vp-rank-val"><b>ETB {{ t.total|floatformat:2 }}</b> · {{ t.cnt }} sales</span>
         </div>
         <div class="vp-progress">
@@ -310,7 +362,7 @@
         {% for t in kpi.tenants %}
         {% if t.is_suspended %}
         <tr>
-          <td><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ t.id }}/change/">{{ t.name }}</a> <span class="vp-dim">#{{ t.id }}</span></td>
+          <td><a class="vp-link-strong" href="/admin/tenant/{{ t.id }}/">{{ t.name }}</a> <span class="vp-dim">#{{ t.id }}</span></td>
           <td class="vp-dim">{{ t.suspended_note|default:"—" }}</td>
           <td class="vp-dim">{{ t.suspended_at|date:"M d, H:i" }}</td>
           <td class="vp-num">

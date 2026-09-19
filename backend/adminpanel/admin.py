@@ -17,10 +17,23 @@ UI model:
 - django-unfold theme, Velo brand, curated sidebar.
 - Money Radar (v2.0.0): health scores, upsell pipeline, churn risk,
   win-back list, revenue benchmarks — the revenue-intelligence page.
+
+v2.4.0 — OWNER OS (research-driven: how Stripe/Shopify-class platforms run
+their own back-office):
+- Owner audit trail: every privileged action taken through the console
+  (suspend, restore, ban, unban, plan moves, test flags, deletes, notes)
+  is appended to adminpanel.owner_audit — actor, target, details, IP — and
+  surfaced on a filterable, reviewable page at /admin/audit/.
+- Tenant 360 at /admin/tenant/<id>/: support-grade, read-only dossier
+  (the safe stand-in for login-as impersonation) with CRM notes and
+  audited quick actions (plan move, test flag).
+- Call-sheet CSV export at /admin/money-radar/export.csv.
 """
+import csv
+
 from django.contrib import admin, messages
 from django.db import connection, IntegrityError, transaction
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import path
 from django.utils.html import format_html
@@ -29,7 +42,17 @@ from unfold.contrib.filters.admin import RangeNumericFilter, RelatedDropdownFilt
 from unfold.sites import UnfoldAdminSite
 
 from . import models
-from .dashboard import PERIODS, kpis, money_radar
+from .dashboard import (
+    PERIODS,
+    PLAN_PRICES_ETB,
+    add_note,
+    audit_actions,
+    audit_trail,
+    kpis,
+    money_radar,
+    radar_call_sheet,
+    tenant_360,
+)
 from .filters import (
     ItemTypeFilter,
     LanguageFilter,
@@ -69,6 +92,15 @@ class VeloAdminSite(UnfoldAdminSite):
             path("money-radar/",
                  self.admin_view(self.money_radar_view),
                  name="velo_money_radar"),
+            path("money-radar/export.csv",
+                 self.admin_view(self.radar_export),
+                 name="velo_radar_export"),
+            path("tenant/<int:shop_id>/",
+                 self.admin_view(self.tenant_view),
+                 name="velo_tenant360"),
+            path("audit/",
+                 self.admin_view(self.audit_view),
+                 name="velo_audit"),
             path("tenant/suspend/",
                  self.admin_view(self.suspend_tenant),
                  name="velo_tenant_suspend_any"),
@@ -84,6 +116,80 @@ class VeloAdminSite(UnfoldAdminSite):
         return render(request, "admin/velo_money_radar.html",
                       {"radar": money_radar(),
                        **self.each_context(request)})
+
+    # ---- v2.4.0: tenant 360 (read-only dossier + notes + quick actions)
+    def tenant_view(self, request, shop_id):
+        data = tenant_360(shop_id)
+        if data is None:
+            messages.add_message(request, messages.ERROR,
+                                 f"Tenant #{shop_id} not found.")
+            return HttpResponseRedirect("/admin/money-radar/")
+        name = data["shop"]["name"]
+        if request.method == "POST":
+            action = request.POST.get("action", "")
+            if action == "note":
+                body = (request.POST.get("body") or "").strip()
+                if body:
+                    add_note(shop_id, request.user.username, body[:2000])
+                    _audit(request, "tenant.note",
+                           f"shop #{shop_id} {name}", body[:160])
+                    messages.add_message(request, messages.SUCCESS,
+                                         "Note added to the tenant trail.")
+            elif action == "plan":
+                plan = request.POST.get("plan", "")
+                if plan in {"free", "starter", "pro", "business"}:
+                    with connection.cursor() as cur:
+                        cur.execute(
+                            "update public.shops set plan = %s where id = %s",
+                            [plan, shop_id])
+                    _audit(request, "tenant.plan",
+                           f"shop #{shop_id} {name}", f"plan set → {plan}")
+                    messages.add_message(request, messages.SUCCESS,
+                                         f"Tenant moved to the {plan} plan.")
+            elif action == "test":
+                flag = request.POST.get("flag") == "1"
+                with connection.cursor() as cur:
+                    cur.execute(
+                        "update public.shops set is_test = %s where id = %s",
+                        [flag, shop_id])
+                _audit(request, "tenant.test_flag",
+                       f"shop #{shop_id} {name}",
+                       "marked as test tenant" if flag
+                       else "unmarked — back to real")
+                messages.add_message(request, messages.SUCCESS,
+                                     "Test flag updated.")
+            return HttpResponseRedirect(f"/admin/tenant/{shop_id}/")
+        return render(request, "admin/velo_tenant.html",
+                      {"t360": data, "plan_choices": PLAN_PRICES_ETB,
+                       **self.each_context(request)})
+
+    # ---- v2.4.0: owner audit trail page (who did what, when, from where)
+    def audit_view(self, request):
+        action = request.GET.get("action", "")
+        q = (request.GET.get("q") or "").strip()
+        return render(request, "admin/velo_audit.html",
+                      {"entries": audit_trail(action=action, q=q),
+                       "actions": audit_actions(),
+                       "f_action": action, "f_q": q,
+                       **self.each_context(request)})
+
+    # ---- v2.4.0: call-sheet CSV export
+    def radar_export(self, request):
+        rows = radar_call_sheet()
+        resp = HttpResponse(content_type="text/csv")
+        resp["Content-Disposition"] = \
+            'attachment; filename="velo-call-sheet.csv"'
+        w = csv.writer(resp)
+        if rows:
+            w.writerow(list(rows[0].keys()))
+            for r in rows:
+                w.writerow([r[k] for k in rows[0].keys()])
+        else:
+            w.writerow(["tenant", "phone", "plan", "recommended",
+                        "upside_etb_mo", "health", "band", "rev30",
+                        "cnt30", "lifetime", "last_sale", "silent_days",
+                        "churn_risk", "suspended"])
+        return resp
 
     # ---- tenant suspension (danger zone) -------------------------------
     def _set_suspension(self, request, shop_id, suspend: bool):
@@ -109,6 +215,8 @@ class VeloAdminSite(UnfoldAdminSite):
                 [suspend, suspend, note if suspend else "", shop_id])
             row = cur.fetchone()
         name = row[0] if row else f"#{shop_id}"
+        _audit(request, "tenant.suspend" if suspend else "tenant.restore",
+               f"shop #{shop_id} {name}", note)
         level = messages.WARNING if suspend else messages.SUCCESS
         messages.add_message(
             request, level,
@@ -124,6 +232,32 @@ class VeloAdminSite(UnfoldAdminSite):
 
 
 velo_admin_site = VeloAdminSite(name="velo_admin")
+
+
+def _client_ip(request) -> str:
+    """Best-effort client IP for the audit trail (Vercel proxies set XFF)."""
+    xff = (request.META.get("HTTP_X_FORWARDED_FOR") or "").split(",")[0].strip()
+    return xff or request.META.get("REMOTE_ADDR", "")
+
+
+def _audit(request, action: str, target: str, details: str = "") -> None:
+    """v2.4.0 — append one privileged action to the owner audit trail.
+
+    Research-backed (SOC 2 / Stripe-class ops): every console action that
+    can change tenant state must land in a tamper-evident, reviewable
+    trail — who, what, when, from where. Django's LogEntry already covers
+    ORM saves; this covers the raw-SQL paths that used to bypass it.
+    """
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                "insert into adminpanel.owner_audit "
+                "(actor, action, target, details, ip) "
+                "values (%s, %s, %s, %s, %s)",
+                [request.user.username, action, target, details or "",
+                 _client_ip(request)])
+    except Exception:  # never let audit logging break the action itself
+        pass
 
 
 _BLOCKED_MSG = (
@@ -199,6 +333,9 @@ class _GuardedDeleteMixin:
         try:
             with transaction.atomic():
                 super().delete_model(request, obj)
+            _audit(request, "record.delete",
+                   f"{self.model._meta.verbose_name} #{obj.pk}",
+                   str(obj)[:200])
         except IntegrityError:
             self.message_user(request, _BLOCKED_MSG, level=messages.ERROR)
 
@@ -214,6 +351,8 @@ class _GuardedDeleteMixin:
                         self.log_deletion(request, obj, str(obj))
                         obj.delete()
                     done += 1
+                    _audit(request, "record.delete",
+                           f"{opts.verbose_name} #{obj.pk}", str(obj)[:200])
                 except IntegrityError:
                     blocked += 1
             if done:
@@ -262,7 +401,11 @@ class TransactionalAdmin(_GuardedDeleteMixin, ModelAdmin):
 
 def _plan_action(plan_name):
     def action(self, request, queryset):
+        names = {s.id: s.name for s in queryset}
         count = queryset.update(plan=plan_name)
+        for sid, name in names.items():
+            _audit(request, "tenant.plan", f"shop #{sid} {name}",
+                   f"bulk move → {plan_name}")
         self.message_user(
             request, f"{count} tenant(s) moved to the {plan_name} plan.",
             level=messages.SUCCESS)
@@ -338,6 +481,18 @@ class ShopAdmin(FullPowerAdmin):
                 '<span class="vp-pill vp-pill-test">test</span>')
         return ""
 
+    def save_model(self, request, obj, form, change):
+        """Audit plan changes made through the shop change form — the one
+        billing lever that used to be invisible to the audit trail."""
+        old_plan = None
+        if change and "plan" in form.changed_data:
+            old_plan = (models.Shop.objects.filter(pk=obj.pk)
+                        .values_list("plan", flat=True).first())
+        super().save_model(request, obj, form, change)
+        if change and "plan" in form.changed_data and old_plan != obj.plan:
+            _audit(request, "tenant.plan", f"shop #{obj.pk} {obj.name}",
+                   f"{old_plan} → {obj.plan}")
+
     @admin.action(description="Suspend selected tenants (reversible)")
     def suspend_selected(self, request, queryset):
         count = 0
@@ -368,7 +523,10 @@ class ShopAdmin(FullPowerAdmin):
     # radar's health bands, upsell pipeline and heartbeat denominators.
     @admin.action(description="Mark selected shops as TEST tenants")
     def mark_test(self, request, queryset):
+        names = [f"shop #{s.id} {s.name}" for s in queryset]
         count = queryset.update(is_test=True)
+        for nm in names:
+            _audit(request, "tenant.test_flag", nm, "marked as test tenant")
         self.message_user(
             request,
             f"{count} shop(s) marked as test tenants — excluded from "
@@ -376,7 +534,10 @@ class ShopAdmin(FullPowerAdmin):
 
     @admin.action(description="Unmark test tenants (back to real)")
     def unmark_test(self, request, queryset):
+        names = [f"shop #{s.id} {s.name}" for s in queryset]
         count = queryset.update(is_test=False)
+        for nm in names:
+            _audit(request, "tenant.test_flag", nm, "unmarked — back to real")
         self.message_user(
             request,
             f"{count} shop(s) unmarked — back in radar health stats.",
@@ -430,6 +591,8 @@ class AdminAuthUserAdmin(TransactionalAdmin):
                     "update adminpanel.auth_users set banned_until = %s "
                     "where id = %s",
                     ["2099-01-01 00:00:00+00", str(user.id)])
+            _audit(request, "user.ban",
+                   f"app user {user.phone or user.email or user.id}")
             count += 1
         self.message_user(request,
                           f"{count} app user(s) banned (sign-in blocked).",
@@ -443,6 +606,8 @@ class AdminAuthUserAdmin(TransactionalAdmin):
                 cur.execute(
                     "update adminpanel.auth_users set banned_until = null "
                     "where id = %s", [str(user.id)])
+            _audit(request, "user.unban",
+                   f"app user {user.phone or user.email or user.id}")
             count += 1
         self.message_user(request, f"{count} app user(s) unbanned.",
                           level=messages.SUCCESS)

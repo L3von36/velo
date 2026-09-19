@@ -32,6 +32,25 @@ v2.1.0 addition — PLATFORM HEARTBEAT:
   silent 48h+ / empty), 24h sales momentum vs the prior 24h, how many
   tenants are actively selling, and the consecutive sale-day streak —
   so a platform-wide stall is flagged in hours, not weeks.
+
+v2.4.0 additions — OWNER OS (patterns borrowed from how the best platforms
+run their own back-office: Stripe/Shopify-style auditability, support-grade
+tenant visibility, operator metrics):
+- Activation funnel: signup → catalog → first sale → 5-sale habit →
+  active this week. The operator's #1 early-stage metric — month-one churn
+  spikes are onboarding problems, and the funnel shows exactly which
+  milestone leaks.
+- Weekly cohort grid: tenants grouped by signup week, tracked by activity
+  week since signup — onboarding quality you can see.
+- Owner audit trail: every privileged action (suspend, ban, plan moves,
+  test flags, deletes, notes) is written to adminpanel.owner_audit with
+  actor, target, details and IP — and the console surfaces it on a
+  reviewable, filterable page ("logging enabled" is not compliance;
+  "someone actually reads it" is).
+- Tenant 360: one read-only dossier per tenant — health, money trajectory,
+  catalog depth, team, payment rails, recent receipts, notes — so a call
+  starts informed. Full login-as impersonation needs Supabase admin APIs
+  and app-side trust; this is the safe 80/20.
 """
 from datetime import date, timedelta
 from decimal import Decimal
@@ -244,6 +263,7 @@ def kpis(period: int = 14) -> dict:
             "growth": _growth(), "tenants": _tenant_health(),
             "top_shops": top_shops, "max_daily": max_daily,
             "radar": money_radar(),
+            "funnel": _funnel(), "cohorts": _cohorts(),
             "plan_prices": PLAN_PRICES_ETB}
 
 
@@ -281,7 +301,7 @@ with m as (
     from public.shops sh
 )
 select m.*, sh.name, sh.plan, sh.business_type, sh.is_suspended, sh.is_test,
-       sh.created_at,
+       sh.phone, sh.created_at,
        case when m.last_sale is null then null
             else extract(epoch from (now() - m.last_sale)) / 3600.0
        end as hours_silent
@@ -534,6 +554,7 @@ def money_radar() -> dict:
         c.update({
             "id": r["id"], "name": r["name"], "plan": r["plan"],
             "business_type": r["business_type"],
+            "phone": r.get("phone", "") or "",
             "is_suspended": r["is_suspended"],
             "is_test": r.get("is_test", False),
             "items_cnt": r["items_cnt"], "users_cnt": r["users_cnt"],
@@ -580,3 +601,249 @@ def money_radar() -> dict:
             "avg_health": avg_health, "median30": median30,
             "active_count": len(real), "test_count": len(tenants) - len(real),
             "heartbeat": _heartbeat()}
+
+
+# ---------------------------------------------------------------------------
+# v2.4.0 — OWNER OS
+# Auditability, tenant visibility and operator metrics, following the
+# patterns the best platforms use in their own back-office tooling.
+# ---------------------------------------------------------------------------
+
+def _funnel() -> dict:
+    """Activation funnel over real (non-test) tenants:
+    signup → built catalog (≥1 item) → first sale → habit (≥5 sales)
+    → active this week. Conversion %s measure the leak at each milestone —
+    the early-stage operator's single most telling lens."""
+    row = (_rows("""
+        select
+          count(*) as signed,
+          count(*) filter (where exists (
+            select 1 from public.items i where i.shop_id = sh.id)) as catalog,
+          count(*) filter (where exists (
+            select 1 from public.sales s where s.shop_id = sh.id)) as first_sale,
+          count(*) filter (where (
+            select count(*) from public.sales s2
+            where s2.shop_id = sh.id) >= 5) as habit,
+          count(*) filter (where exists (
+            select 1 from public.sales s3 where s3.shop_id = sh.id
+              and s3.created_at > now() - interval '7 days')) as active_7d
+        from public.shops sh
+        where not sh.is_test""") or [{}])[0]
+
+    def n(k):
+        return int(row.get(k) or 0)
+
+    steps = [("Signed up", n("signed")),
+             ("Built catalog", n("catalog")),
+             ("First sale", n("first_sale")),
+             ("Habit · 5+ sales", n("habit")),
+             ("Active this week", n("active_7d"))]
+    signed = steps[0][1]
+    out = []
+    for label, count in steps:
+        pct = (count / signed * 100) if signed else (100.0 if count else 0.0)
+        out.append({"label": label, "count": count, "pct": round(pct, 1)})
+    # step-to-step conversion: where does the cohort leak?
+    for prev, cur in zip(out, out[1:]):
+        cur["step_pct"] = round((cur["count"] / prev["count"] * 100), 1) \
+            if prev["count"] else 0.0
+    worst = min((s for s in out[1:] if s["count"] < out[0]["count"]),
+                key=lambda s: s["step_pct"], default=None)
+    return {"steps": out, "worst_step": worst}
+
+
+def _cohorts() -> list:
+    """Weekly signup cohorts (last 6 incl. current) × activity in each week
+    since signup. Cell = tenants of that cohort that made ANY sale in that
+    week. Onboarding quality you can see: healthy cohorts stay lit across
+    the row; bad ones go dark after week 0."""
+    sizes = _rows("""
+        select date_trunc('week',
+                 (sh.created_at at time zone 'Africa/Addis_Ababa'))::date as wk,
+               count(*) as size
+        from public.shops sh
+        where not sh.is_test
+          and sh.created_at >= date_trunc('week',
+                (now() at time zone 'Africa/Addis_Ababa')) - interval '5 weeks'
+        group by 1""")
+    acts = _rows("""
+        select b.wk as cohort,
+               ((extract(epoch from (a.awk - b.wk)) / 604800.0))::int as week_n,
+               count(distinct s.shop_id) as active
+        from public.shops s
+        join (select id, date_trunc('week',
+                (created_at at time zone 'Africa/Addis_Ababa'))::date as wk
+              from public.shops where not is_test) b
+          on b.id = s.shop_id
+        join (select shop_id, date_trunc('week',
+                (created_at at time zone 'Africa/Addis_Ababa'))::date as awk
+              from public.sales) a
+          on a.shop_id = s.shop_id
+        where s.created_at >= date_trunc('week',
+                (now() at time zone 'Africa/Addis_Ababa')) - interval '5 weeks'
+        group by 1, 2""")
+    act_map = {(a["cohort"], a["week_n"]): a["active"] for a in acts}
+    this_week = _one("""
+        select date_trunc('week',
+            (now() at time zone 'Africa/Addis_Ababa'))::date""")
+    rows = []
+    for s in sorted(sizes, key=lambda r: r["wk"], reverse=True):
+        max_n = ((this_week - s["wk"]).days // 7) if this_week and s["wk"] else 0
+        cells = []
+        # pad to 6 columns so the grid stays rectangular; weeks that have
+        # not happened yet render as "·" (active=None).
+        for nn in range(0, 6):
+            if nn > max_n:
+                cells.append({"n": nn, "active": None, "pct": 0})
+                continue
+            active = act_map.get((s["wk"], nn), 0)
+            cells.append({"n": nn, "active": active,
+                          "pct": round(active / s["size"] * 100) if s["size"] else 0})
+        rows.append({"label": s["wk"].strftime("%b %d"),
+                     "iso": s["wk"].isoformat(), "size": s["size"],
+                     "cells": cells})
+    return rows
+
+
+def audit_actions() -> list:
+    """Distinct actions for the audit page's filter dropdown."""
+    return [r["action"] for r in
+            _rows("select distinct action from adminpanel.owner_audit "
+                  "order by action")]
+
+
+def audit_trail(action: str = "", q: str = "", limit: int = 200) -> list:
+    """The owner audit trail, newest first, optionally filtered by action
+    and a free-text needle across actor/target/details."""
+    sql = ("select id, created_at, actor, action, target, details, ip "
+           "from adminpanel.owner_audit")
+    where, params = [], []
+    if action:
+        where.append("action = %s")
+        params.append(action)
+    if q:
+        where.append("(actor ilike %s or target ilike %s or details ilike %s)")
+        params += [f"%{q}%"] * 3
+    if where:
+        sql += " where " + " and ".join(where)
+    sql += " order by created_at desc limit %s"
+    params.append(limit)
+    return _rows(sql, params)
+
+
+def tenant_360(shop_id: int) -> dict | None:
+    """Everything worth knowing about one tenant, in one read-only pass.
+    The safe stand-in for login-as impersonation: a call starts informed
+    without touching the tenant's auth or data."""
+    shop = _rows("""
+        select sh.id, sh.name, sh.business_type, sh.plan, sh.phone,
+               sh.address, sh.tin, sh.language, sh.currency,
+               sh.telebirr_number, sh.cbe_number,
+               sh.accept_telebirr, sh.accept_cbe, sh.accept_credit,
+               sh.receipt_footer, sh.latitude, sh.longitude,
+               sh.created_at, sh.is_suspended, sh.suspended_at,
+               sh.suspended_note, sh.is_test
+        from public.shops sh where sh.id = %s""", [shop_id])
+    if not shop:
+        return None
+    shop = shop[0]
+
+    # Health + money signals straight from the radar machinery.
+    t = next((x for x in money_radar()["tenants"] if x["id"] == shop_id), None)
+
+    weekly = _rows("""
+        with weeks as (
+            select generate_series(
+                date_trunc('week',
+                    (now() at time zone 'Africa/Addis_Ababa')) - interval '7 weeks',
+                date_trunc('week',
+                    (now() at time zone 'Africa/Addis_Ababa')),
+                interval '1 week')::date as w)
+        select to_char(weeks.w, 'Mon DD') as label,
+               coalesce(sum(s.total), 0) as total,
+               count(s.id) as cnt
+        from weeks
+        left join public.sales s
+          on date_trunc('week', (s.created_at at time zone 'Africa/Addis_Ababa')::date)
+             = weeks.w
+        where weeks.w >= date_trunc('week',
+              (select created_at from public.shops where id = %s))
+          and s.shop_id = %s
+        group by weeks.w order by weeks.w""", [shop_id, shop_id])
+
+    mix = _rows("""
+        select method, count(*) as cnt, coalesce(sum(total), 0) as total
+        from public.sales
+        where shop_id = %s and created_at > now() - interval '30 days'
+        group by method order by total desc""", [shop_id])
+
+    top_items = _rows("""
+        select name_snapshot,
+               sum(qty) as qty,
+               coalesce(sum(line_total), 0) as revenue
+        from public.sale_items
+        where shop_id = %s
+        group by name_snapshot
+        order by revenue desc nulls last limit 8""", [shop_id])
+
+    staff = _rows("""
+        select name, role, phone, active,
+               (user_id is not null) as linked
+        from public.staff where shop_id = %s
+        order by active desc, name""", [shop_id])
+
+    sales = _rows("""
+        select id, receipt_number, total, method, status, staff_name,
+               created_at
+        from public.sales where shop_id = %s
+        order by created_at desc limit 10""", [shop_id])
+
+    notes = _rows("""
+        select id, author, body, created_at
+        from adminpanel.tenant_notes where shop_id = %s
+        order by created_at desc limit 50""", [shop_id])
+
+    cust = (_rows("""
+        select count(*) as n, coalesce(sum(balance), 0) as credit
+        from public.customers where shop_id = %s""", [shop_id]) or [{}])[0]
+
+    max_daily = max((float(r["total"]) for r in weekly), default=0.0)
+    return {"shop": shop, "t": t, "weekly": weekly, "max_weekly": max_daily,
+            "mix": mix, "top_items": top_items, "staff": staff,
+            "sales": sales, "notes": notes,
+            "customers": int(cust.get("n") or 0),
+            "credit_out": _money(cust.get("credit") or 0)}
+
+
+def add_note(shop_id: int, author: str, body: str) -> None:
+    """Append a note to the tenant's CRM trail."""
+    with connection.cursor() as cur:
+        cur.execute(
+            "insert into adminpanel.tenant_notes (shop_id, author, body) "
+            "values (%s, %s, %s)", [shop_id, author, body])
+
+
+def radar_call_sheet() -> list:
+    """Flattened, export-ready call sheet: every real tenant with its plan,
+    health, staleness and (if any) the recommended upgrade."""
+    out = []
+    for t in money_radar()["tenants"]:
+        if t["is_test"]:
+            continue
+        upsell = next((s for s in t["signals"] if s["kind"] == "upsell"), None)
+        churn = next((s for s in t["signals"] if s["kind"] == "churn"), None)
+        out.append({
+            "tenant": t["name"], "phone": t.get("phone", ""),
+            "plan": t["plan"],
+            "recommended": (upsell or {}).get("plan", ""),
+            "upside_etb_mo": (upsell or {}).get("upside", ""),
+            "health": t["health"], "band": t["band"],
+            "rev30": t["rev30"], "cnt30": t["cnt30"],
+            "lifetime": t["rev_life"],
+            "last_sale": t.get("silent_text", ""),
+            "silent_days": t.get("days_silent", ""),
+            "churn_risk": "yes" if churn else "",
+            "suspended": "yes" if t["is_suspended"] else "",
+        })
+    out.sort(key=lambda r: -r["health"])
+    return out
