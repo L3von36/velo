@@ -668,9 +668,9 @@ def _cohorts() -> list:
         group by 1""")
     acts = _rows("""
         select b.wk as cohort,
-               ((extract(epoch from (a.awk - b.wk)) / 604800.0))::int as week_n,
+               ((a.awk - b.wk) / 7) as week_n,
                count(distinct s.shop_id) as active
-        from public.shops s
+        from public.sales s
         join (select id, date_trunc('week',
                 (created_at at time zone 'Africa/Addis_Ababa'))::date as wk
               from public.shops where not is_test) b
@@ -679,7 +679,7 @@ def _cohorts() -> list:
                 (created_at at time zone 'Africa/Addis_Ababa'))::date as awk
               from public.sales) a
           on a.shop_id = s.shop_id
-        where s.created_at >= date_trunc('week',
+        where b.wk >= date_trunc('week',
                 (now() at time zone 'Africa/Addis_Ababa')) - interval '5 weeks'
         group by 1, 2""")
     act_map = {(a["cohort"], a["week_n"]): a["active"] for a in acts}
