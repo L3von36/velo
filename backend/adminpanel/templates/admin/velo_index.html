@@ -1,0 +1,93 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  .velo-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px; margin: 0 0 20px; }
+  .velo-card { background: var(--darkened-bg, #f8f8f8); border: 1px solid var(--hairline-color, #e0e0e0);
+    border-radius: 10px; padding: 14px 16px; }
+  .velo-card .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--body-quiet-color, #666); }
+  .velo-card .v { font-size: 26px; font-weight: 700; line-height: 1.2; margin-top: 4px;
+    color: var(--body-fg, #333); }
+  .velo-card .s { font-size: 12px; color: var(--body-quiet-color, #666); margin-top: 2px; }
+  .velo-panel { background: var(--body-bg, #fff); border: 1px solid var(--hairline-color, #e0e0e0);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; overflow-x: auto; }
+  .velo-panel h2 { margin: 0 0 10px; font-size: 14px; color: var(--body-fg, #333); }
+  .velo-panel table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .velo-panel th { text-align: left; color: var(--body-quiet-color, #666); font-weight: 600;
+    padding: 6px 8px; border-bottom: 1px solid var(--hairline-color, #e0e0e0); }
+  .velo-panel td { padding: 6px 8px; border-bottom: 1px solid var(--hairline-color, #eee); }
+  .velo-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+  .velo-chip { display: inline-block; background: var(--darkened-bg, #f2f2f2);
+    border: 1px solid var(--hairline-color, #ddd); border-radius: 999px;
+    padding: 3px 12px; margin: 0 8px 8px 0; font-size: 12.5px; }
+  .velo-chip b { font-weight: 700; }
+  .velo-num { text-align: right; font-variant-numeric: tabular-nums; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="velo-cards">
+  <div class="velo-card"><div class="k">Shops</div><div class="v">{{ kpi.cards.shops_total }}</div>
+    <div class="s">+{{ kpi.cards.shops_new_30d }} in last 30d</div></div>
+  <div class="velo-card"><div class="k">App users</div><div class="v">{{ kpi.cards.users_total }}</div>
+    <div class="s">{{ kpi.cards.users_active_7d }} active this week</div></div>
+  <div class="velo-card"><div class="k">Catalog items</div><div class="v">{{ kpi.cards.items_total }}</div>
+    <div class="s">across all shops</div></div>
+  <div class="velo-card"><div class="k">Sales all-time</div><div class="v">{{ kpi.cards.sales_all_count }}</div>
+    <div class="s">ETB {{ kpi.cards.sales_all_sum }}</div></div>
+  <div class="velo-card"><div class="k">Revenue today (EAT)</div><div class="v">{{ kpi.cards.sales_today_sum }}</div>
+    <div class="s">{{ kpi.cards.sales_today_count }} sales · ETB {{ kpi.cards.sales_7d_sum }} last 7d</div></div>
+  <div class="velo-card"><div class="k">Expenses last 7d</div><div class="v">{{ kpi.cards.expenses_7d_sum }}</div>
+    <div class="s">logged by shops</div></div>
+</div>
+
+<div class="velo-grid2">
+  <div class="velo-panel">
+    <h2>Newest shops</h2>
+    <table>
+      <tr><th>#</th><th>Name</th><th>Type</th><th>Plan</th><th>Phone</th><th>Joined</th></tr>
+      {% for s in kpi.recent_shops %}
+      <tr>
+        <td>{{ s.id }}</td>
+        <td><a href="/admin/adminpanel/shop/{{ s.id }}/change/">{{ s.name }}</a></td>
+        <td>{{ s.business_type }}</td>
+        <td>{{ s.plan }}</td>
+        <td>{{ s.phone|default:"—" }}</td>
+        <td>{{ s.created_at|date:"M d, H:i" }}</td>
+      </tr>
+      {% empty %}<tr><td colspan="6">No shops yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+
+  <div class="velo-panel">
+    <h2>Latest sales</h2>
+    <table>
+      <tr><th>#</th><th>Shop</th><th>Total</th><th>Method</th><th>Status</th><th>When</th></tr>
+      {% for s in kpi.recent_sales %}
+      <tr>
+        <td>{{ s.id }}</td>
+        <td>{{ s.shop_name }}</td>
+        <td class="velo-num">{{ s.total }}</td>
+        <td>{{ s.method }}</td>
+        <td>{{ s.status }}</td>
+        <td>{{ s.created_at|date:"M d, H:i" }}</td>
+      </tr>
+      {% empty %}<tr><td colspan="6">No sales yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="velo-panel">
+  <h2>Shops by type / plan</h2>
+  {% for t in kpi.by_type %}<span class="velo-chip">{{ t.business_type }}: <b>{{ t.shops }}</b></span>{% endfor %}
+  {% for p in kpi.by_plan %}<span class="velo-chip">plan {{ p.plan }}: <b>{{ p.shops }}</b></span>{% endfor %}
+</div>
+
+{{ block.super }}
+
+{% endblock %}

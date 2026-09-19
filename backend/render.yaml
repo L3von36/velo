@@ -1,0 +1,32 @@
+# Render Blueprint — Velo Owner Admin
+# Deploy: Render Dashboard → New + → Blueprint → connect this repo → Apply.
+# Free plan sleeps after 15 min idle; first load after sleep takes ~30s.
+services:
+  - type: web
+    name: velo-owner-admin
+    runtime: python
+    plan: free
+    region: frankfurt          # eu-central-1, same region as the Supabase project
+    buildCommand: bash build.sh
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.14"
+      - key: VELO_DEBUG
+        value: "0"
+      - key: VELO_DB_HOST
+        value: aws-0-eu-central-1.pooler.supabase.com
+      - key: VELO_DB_PORT
+        value: "5432"
+      - key: VELO_DB_NAME
+        value: postgres
+      - key: VELO_DB_USER
+        value: velo_admin.izidltyssalvvsnievmq
+      - key: VELO_DB_PASSWORD
+        sync: false            # paste the velo_admin DB password in the Render dashboard
+      - key: VELO_ADMIN_USER
+        sync: false            # your owner login username, e.g. owner
+      - key: VELO_ADMIN_PASSWORD
+        sync: false            # your owner login password (choose a strong one)
+      - key: SECRET_KEY
+        generateValue: true

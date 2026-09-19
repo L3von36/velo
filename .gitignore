@@ -25,3 +25,6 @@ flutter_app/android/app/velo-release.jks
 flutter_app/android/app/*.jks
 flutter_app/android/app/*.keystore
 flutter_app/android/key.properties
+
+# Django admin
+backend/staticfiles/
