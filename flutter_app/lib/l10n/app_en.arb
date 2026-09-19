@@ -233,5 +233,12 @@
   "demoAccounts": "Demo accounts (tap to fill)",
   "serverUrl": "Server URL",
   "serverUrlHint": "For native builds: your backend address",
-  "darkMode": "Dark mode"
+  "darkMode": "Dark mode",
+  "pickLocation": "Set shop location",
+  "mapHint": "Drag the map to position the pin",
+  "saveLocation": "Save location",
+  "detectAddress": "Detect address here",
+  "detectFailed": "Couldn't detect the address — you can still save the pin.",
+  "pickOnMap": "Pick on map",
+  "taxId": "Tax ID (TIN)"
 }

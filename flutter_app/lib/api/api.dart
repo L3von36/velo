@@ -46,28 +46,56 @@ class Api {
   /// Role capability matrix (PRD G3) — identical to the Django backend.
   static const Map<String, Map<String, bool>> _roleMatrix = {
     'owner': {
-      'manage_settings': true, 'manage_staff': true, 'view_reports': true,
-      'void_sales': true, 'apply_discount': true, 'edit_prices': true,
-      'manage_customers': true, 'record_payment': true, 'manage_expenses': true,
-      'view_profit': true, 'view_cost': true,
+      'manage_settings': true,
+      'manage_staff': true,
+      'view_reports': true,
+      'void_sales': true,
+      'apply_discount': true,
+      'edit_prices': true,
+      'manage_customers': true,
+      'record_payment': true,
+      'manage_expenses': true,
+      'view_profit': true,
+      'view_cost': true,
     },
     'manager': {
-      'manage_settings': false, 'manage_staff': true, 'view_reports': true,
-      'void_sales': true, 'apply_discount': true, 'edit_prices': true,
-      'manage_customers': true, 'record_payment': true, 'manage_expenses': true,
-      'view_profit': true, 'view_cost': true,
+      'manage_settings': false,
+      'manage_staff': true,
+      'view_reports': true,
+      'void_sales': true,
+      'apply_discount': true,
+      'edit_prices': true,
+      'manage_customers': true,
+      'record_payment': true,
+      'manage_expenses': true,
+      'view_profit': true,
+      'view_cost': true,
     },
     'cashier': {
-      'manage_settings': false, 'manage_staff': false, 'view_reports': false,
-      'void_sales': false, 'apply_discount': false, 'edit_prices': false,
-      'manage_customers': true, 'record_payment': true, 'manage_expenses': false,
-      'view_profit': false, 'view_cost': false,
+      'manage_settings': false,
+      'manage_staff': false,
+      'view_reports': false,
+      'void_sales': false,
+      'apply_discount': false,
+      'edit_prices': false,
+      'manage_customers': true,
+      'record_payment': true,
+      'manage_expenses': false,
+      'view_profit': false,
+      'view_cost': false,
     },
     'staff': {
-      'manage_settings': false, 'manage_staff': false, 'view_reports': false,
-      'void_sales': false, 'apply_discount': false, 'edit_prices': false,
-      'manage_customers': true, 'record_payment': true, 'manage_expenses': false,
-      'view_profit': false, 'view_cost': false,
+      'manage_settings': false,
+      'manage_staff': false,
+      'view_reports': false,
+      'void_sales': false,
+      'apply_discount': false,
+      'edit_prices': false,
+      'manage_customers': true,
+      'record_payment': true,
+      'manage_expenses': false,
+      'view_profit': false,
+      'view_cost': false,
     },
   };
 
@@ -75,7 +103,9 @@ class Api {
   Future<Map<String, dynamic>> login(String phone, String password) async {
     try {
       await _sb.auth.signInWithPassword(
-          email: emailForPhone(phone), password: password);
+        email: emailForPhone(phone),
+        password: password,
+      );
     } catch (e) {
       throw mapSupabaseError(e);
     }
@@ -99,11 +129,14 @@ class Api {
         throw ApiException('Account created — please verify and log in.');
       }
       // create the shop + owner staff row + default categories
-      await _sb.rpc('app_create_shop', params: {
-        'p_shop_name': payload['shop_name'] ?? 'My Shop',
-        'p_business_type': payload['business_type'] ?? 'general',
-        'p_phone': phone,
-      });
+      await _sb.rpc(
+        'app_create_shop',
+        params: {
+          'p_shop_name': payload['shop_name'] ?? 'My Shop',
+          'p_business_type': payload['business_type'] ?? 'general',
+          'p_phone': phone,
+        },
+      );
     } catch (e) {
       throw mapSupabaseError(e);
     }
@@ -139,14 +172,17 @@ class Api {
     final u = _sb.auth.currentUser!;
     final meta = u.userMetadata ?? const {};
     final md = meta.cast<String, dynamic>();
-    await _sb.rpc('app_create_shop', params: {
-      'p_shop_name':
-          (md['shop_name'] ?? md['name'] ?? 'My Shop').toString().isEmpty
-              ? 'My Shop'
-              : '${md['shop_name'] ?? md['name'] ?? 'My Shop'}',
-      'p_business_type': 'general',
-      'p_phone': '${md['phone'] ?? ''}',
-    });
+    await _sb.rpc(
+      'app_create_shop',
+      params: {
+        'p_shop_name':
+            (md['shop_name'] ?? md['name'] ?? 'My Shop').toString().isEmpty
+            ? 'My Shop'
+            : '${md['shop_name'] ?? md['name'] ?? 'My Shop'}',
+        'p_business_type': 'general',
+        'p_phone': '${md['phone'] ?? ''}',
+      },
+    );
     final retry = await _sb
         .from('staff')
         .select('*, shop:shops(*)')
@@ -171,51 +207,58 @@ class Api {
         'role': role,
         'capabilities': _roleMatrix[role] ?? _roleMatrix['staff'],
       },
-      'tenant': _tenantJson(shop, await _btConfig(shop['business_type'] ?? 'general')),
+      'tenant': _tenantJson(
+        shop,
+        await _btConfig(shop['business_type'] ?? 'general'),
+      ),
       'branches': const [
         {'id': 1, 'name': 'Main branch', 'is_default': true},
       ],
     };
   }
 
-  Map<String, dynamic> _tenantJson(Map<String, dynamic> shop, Map<String, dynamic> config) => {
-        'id': shop['id'],
-        'name': shop['name'],
-        'business_type': shop['business_type'],
-        'language': shop['language'] ?? 'en',
-        'plan': shop['plan'] ?? 'free',
-        'phone': shop['phone'] ?? '',
-        'address': shop['address'] ?? '',
-        'latitude': shop['latitude'],
-        'longitude': shop['longitude'],
-        'telebirr_number': shop['telebirr_number'] ?? '',
-        'cbe_number': shop['cbe_number'] ?? '',
-        'accept_telebirr': shop['accept_telebirr'] != false,
-        'accept_cbe': shop['accept_cbe'] != false,
-        'accept_credit': shop['accept_credit'] != false,
-        'receipt_footer': shop['receipt_footer'] ?? '',
-        // Derive from the business-type config so service-only shops
-        // (e.g. barbershops) get the right catalog behaviour.
-        'sells_products': config['sells_products'] == true,
-        'sells_services': config['sells_services'] == true,
-        'config': config,
-      };
+  Map<String, dynamic> _tenantJson(
+    Map<String, dynamic> shop,
+    Map<String, dynamic> config,
+  ) => {
+    'id': shop['id'],
+    'name': shop['name'],
+    'business_type': shop['business_type'],
+    'language': shop['language'] ?? 'en',
+    'plan': shop['plan'] ?? 'free',
+    'phone': shop['phone'] ?? '',
+    'address': shop['address'] ?? '',
+    'latitude': shop['latitude'],
+    'longitude': shop['longitude'],
+    'tin': shop['tin'] ?? '',
+    'telebirr_number': shop['telebirr_number'] ?? '',
+    'cbe_number': shop['cbe_number'] ?? '',
+    'accept_telebirr': shop['accept_telebirr'] != false,
+    'accept_cbe': shop['accept_cbe'] != false,
+    'accept_credit': shop['accept_credit'] != false,
+    'receipt_footer': shop['receipt_footer'] ?? '',
+    // Derive from the business-type config so service-only shops
+    // (e.g. barbershops) get the right catalog behaviour.
+    'sells_products': config['sells_products'] == true,
+    'sells_services': config['sells_services'] == true,
+    'config': config,
+  };
 
   Map<String, dynamic> _btJson(String key, Map<String, dynamic> c) => {
-        'key': c['key'] ?? key,
-        'label_en': c['label_en'] ?? key,
-        'label_am': c['label_am'] ?? key,
-        'catalog_label': c['catalog_label'] ?? 'Catalog',
-        'sells_products': c['sells_products'] == true,
-        'sells_services': c['sells_services'] == true,
-        'variants': c['variants'] == true,
-        'inventory': c['inventory'] == true,
-        'appointments': c['appointments'] == true,
-        'barcode': c['barcode'] ?? 'optional',
-        'staff_commission': c['staff_commission'] == true,
-        'default_categories': c['default_categories'] ?? const [],
-        'icon': c['icon'] ?? 'category',
-      };
+    'key': c['key'] ?? key,
+    'label_en': c['label_en'] ?? key,
+    'label_am': c['label_am'] ?? key,
+    'catalog_label': c['catalog_label'] ?? 'Catalog',
+    'sells_products': c['sells_products'] == true,
+    'sells_services': c['sells_services'] == true,
+    'variants': c['variants'] == true,
+    'inventory': c['inventory'] == true,
+    'appointments': c['appointments'] == true,
+    'barcode': c['barcode'] ?? 'optional',
+    'staff_commission': c['staff_commission'] == true,
+    'default_categories': c['default_categories'] ?? const [],
+    'icon': c['icon'] ?? 'category',
+  };
 
   Future<Map<String, dynamic>> _btConfig(String key) async {
     final rows = await _sb
@@ -228,22 +271,46 @@ class Api {
   }
 
   Future<List<BusinessTypeConfig>> businessTypes() async {
-    final rows = await _sb.from('business_types').select('key, config').order('sort');
+    final rows = await _sb
+        .from('business_types')
+        .select('key, config')
+        .order('sort');
     return (rows as List)
-        .map((e) => BusinessTypeConfig.fromJson(
-            _btJson('${e['key']}', (e['config'] as Map).cast<String, dynamic>())))
+        .map(
+          (e) => BusinessTypeConfig.fromJson(
+            _btJson(
+              '${e['key']}',
+              (e['config'] as Map).cast<String, dynamic>(),
+            ),
+          ),
+        )
         .toList();
   }
 
   Future<List<Map<String, dynamic>>> demoAccounts() async => const [
-        {'tenant': 'Sheger Supermarket', 'phone': '0911000001', 'password': 'demo1234'},
-        {'tenant': 'Merkato Fashion House', 'phone': '0911000002', 'password': 'demo1234'},
-        {'tenant': 'Addis Fade Barbershop', 'phone': '0911000003', 'password': 'demo1234'},
-      ];
+    {
+      'tenant': 'Sheger Supermarket',
+      'phone': '0911000001',
+      'password': 'demo1234',
+    },
+    {
+      'tenant': 'Merkato Fashion House',
+      'phone': '0911000002',
+      'password': 'demo1234',
+    },
+    {
+      'tenant': 'Addis Fade Barbershop',
+      'phone': '0911000003',
+      'password': 'demo1234',
+    },
+  ];
 
   // ---------------------------------------------------------------- catalog
   Future<List<Category>> categories() async {
-    final rows = await _sb.from('categories').select('id, name, items(count)').order('name');
+    final rows = await _sb
+        .from('categories')
+        .select('id, name, items(count)')
+        .order('name');
     return (rows as List).map((e) {
       final counts = (e['items'] as List?) ?? const [];
       final n = counts.isEmpty ? 0 : (counts.first['count'] ?? 0);
@@ -257,8 +324,16 @@ class Api {
 
   Future<Category> createCategory(String name) async {
     try {
-      final row = await _sb.from('categories').insert({'name': name}).select().single();
-      return Category.fromJson({'id': row['id'], 'name': row['name'], 'item_count': 0});
+      final row = await _sb
+          .from('categories')
+          .insert({'name': name})
+          .select()
+          .single();
+      return Category.fromJson({
+        'id': row['id'],
+        'name': row['name'],
+        'item_count': 0,
+      });
     } catch (e) {
       throw mapSupabaseError(e);
     }
@@ -274,12 +349,16 @@ class Api {
     int? category,
     bool lowStock = false,
   }) async {
-    var q = _sb.from('items').select('*, category:categories(name), variants:item_variants(*)');
+    var q = _sb
+        .from('items')
+        .select('*, category:categories(name), variants:item_variants(*)');
     if (type != null) q = q.eq('type', type);
     if (category != null) q = q.eq('category_id', category);
     if (lowStock) {
-      q = q.eq('is_active', true).eq('type', 'product')
-           .filter('stock_qty', 'lte', 'low_stock_threshold');
+      q = q
+          .eq('is_active', true)
+          .eq('type', 'product')
+          .filter('stock_qty', 'lte', 'low_stock_threshold');
     }
     if (search != null && search.isNotEmpty) {
       q = q.or('name.ilike.%$search%,barcode.eq.$search');
@@ -306,14 +385,16 @@ class Api {
     final cat = e['category'];
     final vars = ((e['variants'] ?? const []) as List)
         .whereType<Map>()
-        .map((v) => {
-              'id': v['id'],
-              'attributes': v['attributes'] ?? const {},
-              'stock_qty': v['stock_qty'] ?? 0,
-              'price_override': v['price_override'],
-              'sku': v['sku'] ?? '',
-              'barcode': v['barcode'] ?? '',
-            })
+        .map(
+          (v) => {
+            'id': v['id'],
+            'attributes': v['attributes'] ?? const {},
+            'stock_qty': v['stock_qty'] ?? 0,
+            'price_override': v['price_override'],
+            'sku': v['sku'] ?? '',
+            'barcode': v['barcode'] ?? '',
+          },
+        )
         .toList();
     return {
       'id': e['id'],
@@ -333,29 +414,30 @@ class Api {
       'is_active': e['is_active'] != false,
       'is_low_stock':
           (e['type'] ?? 'product') == 'product' &&
-              ((e['stock_qty'] ?? 0) as num) <= ((e['low_stock_threshold'] ?? 5) as num),
+          ((e['stock_qty'] ?? 0) as num) <=
+              ((e['low_stock_threshold'] ?? 5) as num),
       'variants': vars,
     };
   }
 
   Map<String, dynamic> _itemPayload(Map<String, dynamic> payload) => {
-        'type': payload['type'] ?? 'product',
-        'name': payload['name'],
-        if (payload['description'] != null) 'description': payload['description'],
-        'price': payload['price'] ?? 0,
-        if (payload['cost'] != null) 'cost': payload['cost'],
-        if (payload['category'] != null) 'category_id': payload['category'],
-        if (payload['stock_qty'] != null) 'stock_qty': payload['stock_qty'],
-        if (payload['low_stock_threshold'] != null)
-          'low_stock_threshold': payload['low_stock_threshold'],
-        if (payload['barcode'] != null) 'barcode': payload['barcode'],
-        if (payload['unit'] != null) 'unit': payload['unit'],
-        if (payload['duration_minutes'] != null)
-          'duration_minutes': payload['duration_minutes'],
-        if (payload['requires_stock'] != null)
-          'requires_stock': payload['requires_stock'],
-        if (payload['is_active'] != null) 'is_active': payload['is_active'],
-      };
+    'type': payload['type'] ?? 'product',
+    'name': payload['name'],
+    if (payload['description'] != null) 'description': payload['description'],
+    'price': payload['price'] ?? 0,
+    if (payload['cost'] != null) 'cost': payload['cost'],
+    if (payload['category'] != null) 'category_id': payload['category'],
+    if (payload['stock_qty'] != null) 'stock_qty': payload['stock_qty'],
+    if (payload['low_stock_threshold'] != null)
+      'low_stock_threshold': payload['low_stock_threshold'],
+    if (payload['barcode'] != null) 'barcode': payload['barcode'],
+    if (payload['unit'] != null) 'unit': payload['unit'],
+    if (payload['duration_minutes'] != null)
+      'duration_minutes': payload['duration_minutes'],
+    if (payload['requires_stock'] != null)
+      'requires_stock': payload['requires_stock'],
+    if (payload['is_active'] != null) 'is_active': payload['is_active'],
+  };
 
   Future<CatalogItem> createItem(Map<String, dynamic> payload) async {
     try {
@@ -389,19 +471,26 @@ class Api {
   Future<int> stockAdjust(int id, Map<String, dynamic> payload) async {
     final delta = (payload['delta'] ?? payload['qty_change'] ?? 0) is num
         ? (payload['delta'] ?? payload['qty_change'] ?? 0) as num
-        : num.tryParse('${payload['delta'] ?? payload['qty_change'] ?? 0}') ?? 0;
-    final r = await _sb.rpc('app_stock_adjust', params: {
-      'p_item': id,
-      'p_delta': delta.toInt(),
-      'p_reason': '${payload['reason'] ?? ''}',
-    });
+        : num.tryParse('${payload['delta'] ?? payload['qty_change'] ?? 0}') ??
+              0;
+    final r = await _sb.rpc(
+      'app_stock_adjust',
+      params: {
+        'p_item': id,
+        'p_delta': delta.toInt(),
+        'p_reason': '${payload['reason'] ?? ''}',
+      },
+    );
     return ((r as Map)['stock_qty'] ?? 0) is int
         ? (r['stock_qty'] as int)
         : int.tryParse('${r['stock_qty']}') ?? 0;
   }
 
   // ---------------------------------------------------------------- customers
-  Future<List<Customer>> customers({String? search, bool debtors = false}) async {
+  Future<List<Customer>> customers({
+    String? search,
+    bool debtors = false,
+  }) async {
     var q = _sb.from('customers').select();
     if (debtors) q = q.gt('balance', 0.009);
     if (search != null && search.isNotEmpty) {
@@ -438,13 +527,18 @@ class Api {
   Future<Map<String, dynamic>> customerDetail(int id) =>
       _sb.rpc('app_customer_detail', params: {'p_customer': id});
 
-  Future<Map<String, dynamic>> addLedger(int id, Map<String, dynamic> payload) =>
-      _sb.rpc('app_add_ledger', params: {
-        'p_customer': id,
-        'p_type': payload['type'] ?? 'payment',
-        'p_amount': payload['amount'] ?? 0,
-        'p_note': '${payload['note'] ?? ''}',
-      });
+  Future<Map<String, dynamic>> addLedger(
+    int id,
+    Map<String, dynamic> payload,
+  ) => _sb.rpc(
+    'app_add_ledger',
+    params: {
+      'p_customer': id,
+      'p_type': payload['type'] ?? 'payment',
+      'p_amount': payload['amount'] ?? 0,
+      'p_note': '${payload['note'] ?? ''}',
+    },
+  );
 
   // ---------------------------------------------------------------- staff
   Future<List<StaffMember>> staff() async {
@@ -551,8 +645,10 @@ class Api {
 
   Future<Sale> refundSale(int id, String reason) async {
     try {
-      final r = await _sb
-          .rpc('app_refund_sale', params: {'p_sale': id, 'p_reason': reason});
+      final r = await _sb.rpc(
+        'app_refund_sale',
+        params: {'p_sale': id, 'p_reason': reason},
+      );
       return Sale.fromJson((r as Map).cast<String, dynamic>());
     } catch (e) {
       throw mapSupabaseError(e);
@@ -560,8 +656,10 @@ class Api {
   }
 
   Future<List<HeldSaleInfo>> heldSales() async {
-    final rows =
-        await _sb.from('held_sales').select().order('created_at', ascending: false);
+    final rows = await _sb
+        .from('held_sales')
+        .select()
+        .order('created_at', ascending: false);
     return (rows as List)
         .map((e) => HeldSaleInfo.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
@@ -569,7 +667,10 @@ class Api {
 
   Future<void> holdSale(Map<String, dynamic> payload) async {
     final p = Map<String, dynamic>.from(payload)..remove('label');
-    await _sb.from('held_sales').insert({'label': payload['label'] ?? '', 'payload': p});
+    await _sb.from('held_sales').insert({
+      'label': payload['label'] ?? '',
+      'payload': p,
+    });
   }
 
   Future<void> deleteHeldSale(int id) =>
@@ -626,7 +727,9 @@ class Api {
   Future<List<ExpenseCategory>> expenseCategories() async {
     final rows = await _sb.from('expense_categories').select().order('name');
     return (rows as List)
-        .map((e) => ExpenseCategory.fromJson((e as Map).cast<String, dynamic>()))
+        .map(
+          (e) => ExpenseCategory.fromJson((e as Map).cast<String, dynamic>()),
+        )
         .toList();
   }
 
@@ -637,21 +740,29 @@ class Api {
   }
 
   Future<SalesReport> salesReport(String from, String to) async {
-    final r = await _sb
-        .rpc('app_sales_report', params: {'f': from, 't': to});
+    final r = await _sb.rpc('app_sales_report', params: {'f': from, 't': to});
     return SalesReport.fromJson((r as Map).cast<String, dynamic>());
   }
 
-  Future<List<TopItem>> bestSellers(String from, String to, {String by = 'qty'}) async {
-    final r = await _sb.rpc('app_best_sellers',
-        params: {'f': from, 't': to, 'by_mode': by});
+  Future<List<TopItem>> bestSellers(
+    String from,
+    String to, {
+    String by = 'qty',
+  }) async {
+    final r = await _sb.rpc(
+      'app_best_sellers',
+      params: {'f': from, 't': to, 'by_mode': by},
+    );
     return (((r as Map)['results'] ?? const []) as List)
         .map((e) => TopItem.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
   }
 
   Future<List<StaffSlice>> staffPerformance(String from, String to) async {
-    final r = await _sb.rpc('app_staff_performance', params: {'f': from, 't': to});
+    final r = await _sb.rpc(
+      'app_staff_performance',
+      params: {'f': from, 't': to},
+    );
     return (((r as Map)['results'] ?? const []) as List)
         .map((e) => StaffSlice.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
@@ -689,12 +800,21 @@ class Api {
           'latitude': (payload['latitude'] as num).toDouble(),
         if (payload['longitude'] != null)
           'longitude': (payload['longitude'] as num).toDouble(),
+        if (payload['tin'] != null) 'tin': payload['tin'],
       };
-      final row =
-          await _sb.from('shops').update(patch).eq('id', shopId).select().single();
+      final row = await _sb
+          .from('shops')
+          .update(patch)
+          .eq('id', shopId)
+          .select()
+          .single();
       final shopMap = (row as Map).cast<String, dynamic>();
       return TenantInfo.fromJson(
-          _tenantJson(shopMap, await _btConfig(shopMap['business_type'] ?? 'general')));
+        _tenantJson(
+          shopMap,
+          await _btConfig(shopMap['business_type'] ?? 'general'),
+        ),
+      );
     } catch (e) {
       throw mapSupabaseError(e);
     }

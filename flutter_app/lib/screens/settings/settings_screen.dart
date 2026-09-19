@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app.dart';
@@ -9,6 +8,7 @@ import '../../models/models.dart';
 import '../../providers/session.dart';
 import '../../widgets/common.dart';
 import '../../utils/format.dart';
+import '../common/location_picker.dart';
 
 /// K1–K10 — settings hub: business profile, payment methods, receipt,
 /// language, dark mode, plan, logout.
@@ -50,9 +50,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Text(
-                      (tenant?.name.isNotEmpty ?? false) ? tenant!.name[0].toUpperCase() : '?',
+                      (tenant?.name.isNotEmpty ?? false)
+                          ? tenant!.name[0].toUpperCase()
+                          : '?',
                       style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.w800, fontSize: 19.5),
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 19.5,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -60,13 +65,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(tenant?.name ?? '—',
-                            style: theme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        Text(
+                          tenant?.name ?? '—',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         Text(
                           '${tenant?.config.labelEn ?? ''} · ${t(context).plan}: ${tenant?.plan ?? ''}',
-                          style: theme.textTheme.labelSmall
-                              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),
@@ -85,9 +94,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: Text(t(context).shopName),
                   subtitle: Text(tenant?.name ?? ''),
                   enabled: canManageSettings,
-                  onTap: () => _editField(context,
-                      title: t(context).shopName, initial: tenant?.name ?? '',
-                      onSave: (v) => _saveSettings({'name': v})),
+                  onTap: () => _editField(
+                    context,
+                    title: t(context).shopName,
+                    initial: tenant?.name ?? '',
+                    onSave: (v) => _saveSettings({'name': v}),
+                  ),
                 ),
                 ListTile(
                   leading: const Icon(Icons.category_rounded),
@@ -97,21 +109,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ? const Icon(Icons.chevron_right_rounded, size: 20)
                       : null,
                   enabled: canManageSettings,
-                  onTap: canManageSettings ? () => _pickBusinessType(context) : null,
+                  onTap: canManageSettings
+                      ? () => _pickBusinessType(context)
+                      : null,
                 ),
                 ListTile(
                   leading: const Icon(Icons.phone_rounded),
                   title: Text(t(context).phoneNumber),
-                  subtitle: Text(tenant == null || tenant.phone.isEmpty
-                      ? '—'
-                      : EthPhone.pretty(tenant.phone)),
+                  subtitle: Text(
+                    tenant == null || tenant.phone.isEmpty
+                        ? '—'
+                        : EthPhone.pretty(tenant.phone),
+                  ),
                   enabled: canManageSettings,
                   onTap: canManageSettings
-                      ? () => _editField(context,
+                      ? () => _editField(
+                          context,
                           title: t(context).phoneNumber,
                           initial: tenant?.phone ?? '',
                           keyboardType: TextInputType.phone,
-                          onSave: (v) => _saveSettings({'phone': v}))
+                          onSave: (v) => _saveSettings({'phone': v}),
+                        )
                       : null,
                 ),
                 ListTile(
@@ -119,7 +137,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: Text(t(context).location),
                   subtitle: Text(_locationLabel(tenant)),
                   enabled: canManageSettings,
-                  onTap: canManageSettings ? () => _captureGps(context) : null,
+                  onTap: canManageSettings
+                      ? () => _editLocation(context)
+                      : null,
+                ),
+                ListTile(
+                  leading: const Icon(Icons.numbers_rounded),
+                  title: Text(t(context).taxId),
+                  subtitle: Text(
+                    (tenant?.tin.isEmpty ?? true) ? 'Not set' : tenant!.tin,
+                  ),
+                  enabled: canManageSettings,
+                  onTap: canManageSettings
+                      ? () => _editField(
+                          context,
+                          title: t(context).taxId,
+                          initial: tenant?.tin ?? '',
+                          keyboardType: TextInputType.number,
+                          onSave: (v) => _saveSettings({'tin': v}),
+                        )
+                      : null,
                 ),
               ],
             ),
@@ -130,28 +167,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               children: [
                 ListTile(
-                  leading: const Icon(Icons.phone_android_rounded,
-                      color: Color(0xFFB3261E)),
+                  leading: const Icon(
+                    Icons.phone_android_rounded,
+                    color: Color(0xFFB3261E),
+                  ),
                   title: Text(t(context).telebirrNumber),
                   subtitle: Text(
-                      (tenant?.telebirrNumber.isEmpty ?? true) ? 'Not set' : tenant!.telebirrNumber),
+                    (tenant?.telebirrNumber.isEmpty ?? true)
+                        ? 'Not set'
+                        : tenant!.telebirrNumber,
+                  ),
                   enabled: canManageSettings,
-                  onTap: () => _editField(context,
-                      title: t(context).telebirrNumber,
-                      initial: tenant?.telebirrNumber ?? '',
-                      onSave: (v) => _saveSettings({'telebirr_number': v})),
+                  onTap: () => _editField(
+                    context,
+                    title: t(context).telebirrNumber,
+                    initial: tenant?.telebirrNumber ?? '',
+                    onSave: (v) => _saveSettings({'telebirr_number': v}),
+                  ),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.account_balance_rounded,
-                      color: Color(0xFF6A4BA1)),
+                  leading: const Icon(
+                    Icons.account_balance_rounded,
+                    color: Color(0xFF6A4BA1),
+                  ),
                   title: Text(t(context).cbeNumber),
                   subtitle: Text(
-                      (tenant?.cbeNumber.isEmpty ?? true) ? 'Not set' : tenant!.cbeNumber),
+                    (tenant?.cbeNumber.isEmpty ?? true)
+                        ? 'Not set'
+                        : tenant!.cbeNumber,
+                  ),
                   enabled: canManageSettings,
-                  onTap: () => _editField(context,
-                      title: t(context).cbeNumber,
-                      initial: tenant?.cbeNumber ?? '',
-                      onSave: (v) => _saveSettings({'cbe_number': v})),
+                  onTap: () => _editField(
+                    context,
+                    title: t(context).cbeNumber,
+                    initial: tenant?.cbeNumber ?? '',
+                    onSave: (v) => _saveSettings({'cbe_number': v}),
+                  ),
                 ),
               ],
             ),
@@ -163,12 +214,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               leading: const Icon(Icons.receipt_rounded),
               title: Text(t(context).receiptFooter),
               subtitle: Text(
-                  (tenant?.receiptFooter.isEmpty ?? true) ? '—' : tenant!.receiptFooter),
+                (tenant?.receiptFooter.isEmpty ?? true)
+                    ? '—'
+                    : tenant!.receiptFooter,
+              ),
               enabled: canManageSettings,
-              onTap: () => _editField(context,
-                  title: t(context).receiptFooter,
-                  initial: tenant?.receiptFooter ?? '',
-                  onSave: (v) => _saveSettings({'receipt_footer': v})),
+              onTap: () => _editField(
+                context,
+                title: t(context).receiptFooter,
+                initial: tenant?.receiptFooter ?? '',
+                onSave: (v) => _saveSettings({'receipt_footer': v}),
+              ),
             ),
           ),
           const SizedBox(height: 14),
@@ -196,7 +252,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   secondary: const Icon(Icons.dark_mode_rounded),
                   title: Text(t(context).darkMode),
                   value: dark,
-                  onChanged: (_) => ref.read(darkModeProvider.notifier).toggle(),
+                  onChanged: (_) =>
+                      ref.read(darkModeProvider.notifier).toggle(),
                 ),
               ],
             ),
@@ -212,17 +269,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   subtitle: Text('${user?.phone ?? ''} · ${user?.role ?? ''}'),
                 ),
                 ListTile(
-                  leading: Icon(Icons.logout_rounded, color: theme.colorScheme.error),
-                  title: Text(t(context).logout,
-                      style: TextStyle(color: theme.colorScheme.error)),
+                  leading: Icon(
+                    Icons.logout_rounded,
+                    color: theme.colorScheme.error,
+                  ),
+                  title: Text(
+                    t(context).logout,
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
                   onTap: () async {
                     // Close any pushed standalone screens first, then clear the
                     // session — the root router swaps to the login screen itself.
                     // (Pushing a second LoginScreen here used to leave a stale
                     // route on top of the app after the next login.)
                     if (context.mounted) {
-                      Navigator.of(context, rootNavigator: true)
-                          .popUntil((r) => r.isFirst);
+                      Navigator.of(
+                        context,
+                        rootNavigator: true,
+                      ).popUntil((r) => r.isFirst);
                     }
                     await ref.read(sessionProvider.notifier).logout();
                   },
@@ -238,8 +302,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 final v = snap.data?.version ?? '';
                 return Text(
                   'Velo ${v.isNotEmpty ? 'v$v' : ''} · built for Ethiopian businesses',
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: theme.colorScheme.outline),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
                 );
               },
             ),
@@ -252,11 +317,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   String _locationLabel(TenantInfo? tenant) {
     if (tenant == null) return '—';
+    // A human-readable address beats raw coordinates when we have both.
+    if (tenant.address.isNotEmpty &&
+        tenant.latitude != null &&
+        tenant.longitude != null) {
+      return tenant.address;
+    }
     if (tenant.latitude != null && tenant.longitude != null) {
       return '${tenant.latitude!.toStringAsFixed(4)}, ${tenant.longitude!.toStringAsFixed(4)}';
     }
     if (tenant.address.isNotEmpty) return tenant.address;
     return t(context).notSet;
+  }
+
+  /// Open the map picker; persist the pin, plus a detected address only if
+  /// the user explicitly asked for one inside the picker.
+  Future<void> _editLocation(BuildContext context) async {
+    final tenant = ref.read(sessionProvider).value?.tenant;
+    final result = await showLocationPicker(
+      context,
+      initialLat: tenant?.latitude,
+      initialLng: tenant?.longitude,
+    );
+    if (result == null || !mounted) return;
+    await _saveSettings({
+      'latitude': result.latitude,
+      'longitude': result.longitude,
+      if (result.address != null) 'address': result.address,
+    });
   }
 
   Future<void> _pickBusinessType(BuildContext context) async {
@@ -287,37 +375,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not load business types.')));
+          const SnackBar(content: Text('Could not load business types.')),
+        );
       }
-    }
-  }
-
-  /// Re-capture the shop's GPS position (Addis) and persist it.
-  Future<void> _captureGps(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final deniedMsg = t(context).locationDenied;
-    messenger.showSnackBar(SnackBar(
-        content: Text(t(context).locating), duration: const Duration(seconds: 2)));
-    try {
-      var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      final denied = perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever;
-      final serviceOn = denied ? false : await Geolocator.isLocationServiceEnabled();
-      if (denied || !serviceOn) {
-        messenger.showSnackBar(SnackBar(content: Text(deniedMsg)));
-        return;
-      }
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 15)),
-      );
-      await _saveSettings(
-          {'latitude': pos.latitude, 'longitude': pos.longitude});
-    } catch (_) {
-      messenger.showSnackBar(SnackBar(content: Text(deniedMsg)));
     }
   }
 
@@ -326,7 +386,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await ref.read(sessionProvider.notifier).setLanguage(lang);
     try {
       await Api().updateLanguage(lang);
-    } catch (_) {/* local works offline */}
+    } catch (_) {
+      /* local works offline */
+    }
   }
 
   Future<void> _saveSettings(Map<String, dynamic> payload) async {
@@ -334,13 +396,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await Api().updateSettings(payload);
       await ref.read(sessionProvider.notifier).refreshTenant();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(t(context).saved)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t(context).saved)));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString().replaceFirst('ApiException: ', ''))));
+          SnackBar(
+            content: Text(e.toString().replaceFirst('ApiException: ', '')),
+          ),
+        );
       }
     }
   }
@@ -363,10 +429,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           keyboardType: keyboardType,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t(context).cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t(context).cancel),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-              child: Text(t(context).save)),
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: Text(t(context).save),
+          ),
         ],
       ),
     );

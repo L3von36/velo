@@ -10,6 +10,7 @@ import '../../models/models.dart';
 import '../../providers/session.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
+import '../common/location_picker.dart';
 
 /// Onboarding wizard — business kind → business type → location (GPS) →
 /// currency → checklist. Each step skippable where allowed.
@@ -29,7 +30,8 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
   String? _businessType;
   List<BusinessTypeConfig> _types = [];
 
-  Position? _pos;
+  double? _lat;
+  double? _lng;
   bool _locating = false;
   String? _locError;
   final _address = TextEditingController();
@@ -53,7 +55,9 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
     try {
       final types = await Api().businessTypes();
       if (mounted) setState(() => _types = types);
-    } catch (_) {/* grid shows fallback */}
+    } catch (_) {
+      /* grid shows fallback */
+    }
   }
 
   /// Business types matching the chosen shop kind.
@@ -91,8 +95,8 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
       await Api().updateSettings({
         'phone': _phone.text.trim(),
         'address': _address.text.trim(),
-        if (_pos != null) 'latitude': _pos!.latitude,
-        if (_pos != null) 'longitude': _pos!.longitude,
+        if (_lat != null) 'latitude': _lat,
+        if (_lng != null) 'longitude': _lng,
       });
       await ref.read(sessionProvider.notifier).refreshTenant();
       _next();
@@ -111,15 +115,22 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
     try {
       // Per-call guards: a hanging permission prompt or GPS fix must never
       // leave this step stuck in the "Locating…" state.
-      var perm = await Geolocator.checkPermission().timeout(const Duration(seconds: 8));
+      var perm = await Geolocator.checkPermission().timeout(
+        const Duration(seconds: 8),
+      );
       if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission().timeout(const Duration(seconds: 25));
+        perm = await Geolocator.requestPermission().timeout(
+          const Duration(seconds: 25),
+        );
       }
       final denied =
-          perm == LocationPermission.denied || perm == LocationPermission.deniedForever;
+          perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever;
       final serviceOn = denied
           ? false
-          : await Geolocator.isLocationServiceEnabled().timeout(const Duration(seconds: 8));
+          : await Geolocator.isLocationServiceEnabled().timeout(
+              const Duration(seconds: 8),
+            );
       if (denied || !serviceOn) {
         if (!mounted) return;
         setState(() {
@@ -136,7 +147,8 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
       ).timeout(const Duration(seconds: 25));
       if (!mounted) return;
       setState(() {
-        _pos = pos;
+        _lat = pos.latitude;
+        _lng = pos.longitude;
         _locating = false;
       });
     } on TimeoutException {
@@ -154,10 +166,31 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
     }
   }
 
+  /// Open the full-screen map picker. The pin result fills the same lat/lng
+  /// state the GPS flow uses, and can auto-fill a blank address field from a
+  /// detected address (a typed address is never overwritten).
+  Future<void> _pickOnMap() async {
+    final result = await showLocationPicker(
+      context,
+      initialLat: _lat,
+      initialLng: _lng,
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _lat = result.latitude;
+      _lng = result.longitude;
+      if (result.address != null && _address.text.trim().isEmpty) {
+        _address.text = result.address!;
+      }
+    });
+  }
+
   void _next() {
     if (_step < 4) {
       _page.nextPage(
-          duration: const Duration(milliseconds: 280), curve: Curves.easeOut);
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOut,
+      );
       setState(() => _step += 1);
     } else {
       ref.read(sessionProvider.notifier).finishOnboarding();
@@ -184,10 +217,7 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
         title: Text(titles[_step]),
         actions: [
           if (_step < 4)
-            TextButton(
-              onPressed: _next,
-              child: Text(t(context).skipForNow),
-            ),
+            TextButton(onPressed: _next, child: Text(t(context).skipForNow)),
         ],
       ),
       body: Column(
@@ -224,9 +254,12 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text(t(context).kindSubtitle,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(
+            t(context).kindSubtitle,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 18),
           _KindCard(
             icon: Icons.shopping_basket_rounded,
@@ -268,22 +301,29 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text(t(context).businessTypeSubtitle,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(
+            t(context).businessTypeSubtitle,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 16),
           if (_types.isEmpty)
             const Center(
-                child: Padding(
-              padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
-            ))
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: CircularProgressIndicator(),
+              ),
+            )
           else if (types.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Text(t(context).businessTypeSubtitle,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              child: Text(
+                t(context).businessTypeSubtitle,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             )
           else
             GridView.count(
@@ -305,7 +345,9 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
             ),
           const SizedBox(height: 18),
           FilledButton(
-            onPressed: _businessType == null || _saving ? null : _saveBusinessType,
+            onPressed: _businessType == null || _saving
+                ? null
+                : _saveBusinessType,
             child: Text(_saving ? '…' : t(context).continueLabel),
           ),
         ],
@@ -319,22 +361,26 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text(t(context).locationSubtitle,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(
+            t(context).locationSubtitle,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 18),
           // GPS capture card.
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: _pos != null
+              color: _lat != null
                   ? AppTheme.successSoft
                   : theme.colorScheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(AppTheme.rMd),
               border: Border.all(
-                  color: _pos != null
-                      ? AppTheme.success
-                      : theme.colorScheme.outlineVariant),
+                color: _lat != null
+                    ? AppTheme.success
+                    : theme.colorScheme.outlineVariant,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -342,11 +388,11 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
                 Row(
                   children: [
                     Icon(
-                      _pos != null
+                      _lat != null
                           ? Icons.location_on_rounded
                           : Icons.location_searching_rounded,
                       size: 22,
-                      color: _pos != null
+                      color: _lat != null
                           ? AppTheme.success
                           : theme.colorScheme.onSurfaceVariant,
                     ),
@@ -355,40 +401,53 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
                       child: Text(
                         _locating
                             ? t(context).locating
-                            : _pos != null
-                                ? t(context).locationCaptured
-                                : t(context).useMyLocation,
+                            : _lat != null
+                            ? t(context).locationCaptured
+                            : t(context).useMyLocation,
                         style: theme.textTheme.titleSmall?.copyWith(
-                            color: _pos != null ? AppTheme.success : null),
+                          color: _lat != null ? AppTheme.success : null,
+                        ),
                       ),
                     ),
                     if (_locating)
                       const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2.2)),
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2.2),
+                      ),
                   ],
                 ),
-                if (_pos != null) ...[
+                if (_lat != null) ...[
                   const SizedBox(height: 8),
                   Text(
-                    'Lat ${_pos!.latitude.toStringAsFixed(5)} · Lng ${_pos!.longitude.toStringAsFixed(5)}',
+                    'Lat ${_lat!.toStringAsFixed(5)} · Lng ${_lng!.toStringAsFixed(5)}',
                     style: theme.textTheme.bodySmall,
                   ),
                 ],
                 if (_locError != null) ...[
                   const SizedBox(height: 8),
-                  Text(_locError!,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.error)),
+                  Text(
+                    _locError!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: _locating ? null : _captureLocation,
                   icon: const Icon(Icons.gps_fixed_rounded, size: 18),
-                  label: Text(_pos != null
-                      ? t(context).captureAgain
-                      : t(context).useMyLocation),
+                  label: Text(
+                    _lat != null
+                        ? t(context).captureAgain
+                        : t(context).useMyLocation,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _pickOnMap,
+                  icon: const Icon(Icons.map_rounded, size: 18),
+                  label: Text(t(context).pickOnMap),
                 ),
               ],
             ),
@@ -397,17 +456,19 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
           TextField(
             controller: _address,
             decoration: InputDecoration(
-                labelText: t(context).address,
-                prefixIcon: const Icon(Icons.map_rounded)),
+              labelText: t(context).address,
+              prefixIcon: const Icon(Icons.map_rounded),
+            ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _phone,
             keyboardType: TextInputType.phone,
             decoration: InputDecoration(
-                labelText: t(context).phoneNumber,
-                hintText: t(context).phoneHint,
-                prefixIcon: const Icon(Icons.phone_android_rounded)),
+              labelText: t(context).phoneNumber,
+              hintText: t(context).phoneHint,
+              prefixIcon: const Icon(Icons.phone_android_rounded),
+            ),
           ),
           const SizedBox(height: 20),
           FilledButton(
@@ -446,10 +507,13 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(t(context).currencyConfirmNote),
-                      Text(Money.etb(1250),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: theme.colorScheme.primary)),
+                      Text(
+                        Money.etb(1250),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
                     ],
                   ),
                   const Divider(height: 24),
@@ -457,7 +521,11 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(t(context).language),
-                      Text((session?.tenant?.language ?? 'en') == 'am' ? 'አማርኛ' : 'English'),
+                      Text(
+                        (session?.tenant?.language ?? 'en') == 'am'
+                            ? 'አማርኛ'
+                            : 'English',
+                      ),
                     ],
                   ),
                 ],
@@ -465,10 +533,7 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
             ),
           ),
           const SizedBox(height: 20),
-          FilledButton(
-            onPressed: _next,
-            child: Text(t(context).continueLabel),
-          ),
+          FilledButton(onPressed: _next, child: Text(t(context).continueLabel)),
         ],
       ),
     );
@@ -484,8 +549,12 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
           Icon(Icons.celebration_rounded, size: 56, color: AppTheme.gold),
           const SizedBox(height: 12),
           Center(
-            child: Text('${session?.tenant?.name ?? ''} — ${t(context).setupComplete}',
-                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            child: Text(
+              '${session?.tenant?.name ?? ''} — ${t(context).setupComplete}',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
           const SizedBox(height: 24),
           _CheckRow(done: true, label: t(context).businessProfile),
@@ -493,7 +562,8 @@ class _OnboardingWizardState extends ConsumerState<OnboardingWizard> {
           _CheckRow(done: false, label: t(context).addFirstItem),
           const SizedBox(height: 24),
           FilledButton(
-            onPressed: () => ref.read(sessionProvider.notifier).finishOnboarding(),
+            onPressed: () =>
+                ref.read(sessionProvider.notifier).finishOnboarding(),
             child: Text(t(context).goToDashboard),
           ),
         ],
@@ -533,10 +603,11 @@ class _KindCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppTheme.rMd),
             border: Border.all(
-                color: selected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.outlineVariant,
-                width: selected ? 2 : 1),
+              color: selected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant,
+              width: selected ? 2 : 1,
+            ),
           ),
           child: Row(
             children: [
@@ -549,25 +620,34 @@ class _KindCard extends StatelessWidget {
                       : theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(13),
                 ),
-                child: Icon(icon,
-                    size: 24,
-                    color: selected
-                        ? theme.colorScheme.onPrimary
-                        : theme.colorScheme.onSurfaceVariant),
+                child: Icon(
+                  icon,
+                  size: 24,
+                  color: selected
+                      ? theme.colorScheme.onPrimary
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight:
-                                selected ? FontWeight.w800 : FontWeight.w600)),
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: selected
+                            ? FontWeight.w800
+                            : FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant)),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -625,15 +705,22 @@ class _TypeCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-                color: selected ? theme.colorScheme.primary : theme.colorScheme.outlineVariant,
-                width: selected ? 2 : 1),
+              color: selected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant,
+              width: selected ? 2 : 1,
+            ),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(_icons[config.key] ?? Icons.category_rounded,
-                  size: 30,
-                  color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant),
+              Icon(
+                _icons[config.key] ?? Icons.category_rounded,
+                size: 30,
+                color: selected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
               const SizedBox(height: 8),
               Text(
                 config.label(lang),
@@ -641,7 +728,8 @@ class _TypeCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -664,7 +752,9 @@ class _CheckRow extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            done ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            done
+                ? Icons.check_circle_rounded
+                : Icons.radio_button_unchecked_rounded,
             color: done ? theme.colorScheme.primary : theme.colorScheme.outline,
           ),
           const SizedBox(width: 12),

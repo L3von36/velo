@@ -24,10 +24,16 @@ class BusinessTypeConfig {
   });
 
   final String key, labelEn, labelAm, catalogLabel, barcode, icon;
-  final bool sellsProducts, sellsServices, variants, inventory, appointments, staffCommission;
+  final bool sellsProducts,
+      sellsServices,
+      variants,
+      inventory,
+      appointments,
+      staffCommission;
   final List<String> defaultCategories;
 
-  static BusinessTypeConfig fromJson(Map<String, dynamic> j) => BusinessTypeConfig(
+  static BusinessTypeConfig fromJson(Map<String, dynamic> j) =>
+      BusinessTypeConfig(
         key: j['key'],
         labelEn: j['label_en'] ?? j['key'],
         labelAm: j['label_am'] ?? j['key'],
@@ -39,7 +45,8 @@ class BusinessTypeConfig {
         appointments: j['appointments'] == true,
         barcode: (j['barcode'] ?? 'optional').toString(),
         staffCommission: j['staff_commission'] == true,
-        defaultCategories: (j['default_categories'] as List?)?.cast<String>() ?? const [],
+        defaultCategories:
+            (j['default_categories'] as List?)?.cast<String>() ?? const [],
         icon: (j['icon'] ?? 'category').toString(),
       );
 
@@ -64,13 +71,17 @@ class UserAccount {
   bool can(String cap) => capabilities[cap] == true;
 
   static UserAccount fromJson(Map<String, dynamic> j) => UserAccount(
-        id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
-        name: j['name'] ?? '',
-        phone: j['phone'] ?? '',
-        role: j['role'] ?? 'cashier',
-        branchId: j['branch_id'] is int ? j['branch_id'] : int.tryParse('${j['branch_id']}'),
-        capabilities: ((j['capabilities'] ?? {}) as Map).map((k, v) => MapEntry('$k', v == true)),
-      );
+    id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
+    name: j['name'] ?? '',
+    phone: j['phone'] ?? '',
+    role: j['role'] ?? 'cashier',
+    branchId: j['branch_id'] is int
+        ? j['branch_id']
+        : int.tryParse('${j['branch_id']}'),
+    capabilities: ((j['capabilities'] ?? {}) as Map).map(
+      (k, v) => MapEntry('$k', v == true),
+    ),
+  );
 }
 
 class BranchInfo {
@@ -79,10 +90,10 @@ class BranchInfo {
   final String name;
   final bool isDefault;
   static BranchInfo fromJson(Map<String, dynamic> j) => BranchInfo(
-        id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
-        name: j['name'] ?? '',
-        isDefault: j['is_default'] == true,
-      );
+    id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
+    name: j['name'] ?? '',
+    isDefault: j['is_default'] == true,
+  );
 }
 
 class TenantInfo {
@@ -97,6 +108,7 @@ class TenantInfo {
     this.address = '',
     this.latitude,
     this.longitude,
+    this.tin = '',
     this.telebirrNumber = '',
     this.cbeNumber = '',
     this.acceptTelebirr = true,
@@ -111,31 +123,37 @@ class TenantInfo {
   final String name, businessType, language, plan, receiptFooter;
   final String phone, address;
   final double? latitude, longitude;
+  final String tin;
   final String telebirrNumber, cbeNumber;
   final bool acceptTelebirr, acceptCbe, acceptCredit;
   final bool sellsProducts, sellsServices;
   final BusinessTypeConfig config;
 
   static TenantInfo fromJson(Map<String, dynamic> j) => TenantInfo(
-        id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
-        name: j['name'] ?? '',
-        businessType: j['business_type'] ?? 'general',
-        language: j['language'] ?? 'en',
-        plan: j['plan'] ?? 'free',
-        phone: j['phone'] ?? '',
-        address: j['address'] ?? '',
-        latitude: (j['latitude'] is num) ? (j['latitude'] as num).toDouble() : null,
-        longitude: (j['longitude'] is num) ? (j['longitude'] as num).toDouble() : null,
-        telebirrNumber: j['telebirr_number'] ?? '',
-        cbeNumber: j['cbe_number'] ?? '',
-        acceptTelebirr: j['accept_telebirr'] != false,
-        acceptCbe: j['accept_cbe'] != false,
-        acceptCredit: j['accept_credit'] != false,
-        receiptFooter: j['receipt_footer'] ?? '',
-        sellsProducts: j['sells_products'] != false,
-        sellsServices: j['sells_services'] == true,
-        config: BusinessTypeConfig.fromJson((j['config'] ?? {}) as Map<String, dynamic>),
-      );
+    id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
+    name: j['name'] ?? '',
+    businessType: j['business_type'] ?? 'general',
+    language: j['language'] ?? 'en',
+    plan: j['plan'] ?? 'free',
+    phone: j['phone'] ?? '',
+    address: j['address'] ?? '',
+    latitude: (j['latitude'] is num) ? (j['latitude'] as num).toDouble() : null,
+    longitude: (j['longitude'] is num)
+        ? (j['longitude'] as num).toDouble()
+        : null,
+    tin: j['tin'] ?? '',
+    telebirrNumber: j['telebirr_number'] ?? '',
+    cbeNumber: j['cbe_number'] ?? '',
+    acceptTelebirr: j['accept_telebirr'] != false,
+    acceptCbe: j['accept_cbe'] != false,
+    acceptCredit: j['accept_credit'] != false,
+    receiptFooter: j['receipt_footer'] ?? '',
+    sellsProducts: j['sells_products'] != false,
+    sellsServices: j['sells_services'] == true,
+    config: BusinessTypeConfig.fromJson(
+      (j['config'] ?? {}) as Map<String, dynamic>,
+    ),
+  );
 }
 
 class Category {
@@ -144,10 +162,12 @@ class Category {
   final String name;
   final int itemCount;
   static Category fromJson(Map<String, dynamic> j) => Category(
-        id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
-        name: j['name'] ?? '',
-        itemCount: (j['item_count'] ?? 0) is num ? (j['item_count'] as num).toInt() : int.tryParse('${j['item_count']}') ?? 0,
-      );
+    id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
+    name: j['name'] ?? '',
+    itemCount: (j['item_count'] ?? 0) is num
+        ? (j['item_count'] as num).toInt()
+        : int.tryParse('${j['item_count']}') ?? 0,
+  );
 }
 
 class Variant {
@@ -165,18 +185,21 @@ class Variant {
   final double? priceOverride;
   final String sku, barcode;
 
-  String get label => attributes.isEmpty
-      ? ''
-      : attributes.values.map((e) => '$e').join(' · ');
+  String get label =>
+      attributes.isEmpty ? '' : attributes.values.map((e) => '$e').join(' · ');
 
   static Variant fromJson(Map<String, dynamic> j) => Variant(
-        id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
-        attributes: (j['attributes'] ?? {}) as Map<String, dynamic>,
-        stockQty: (j['stock_qty'] ?? 0) is num ? (j['stock_qty'] as num).toInt() : 0,
-        priceOverride: j['price_override'] == null ? null : double.tryParse('${j['price_override']}'),
-        sku: j['sku'] ?? '',
-        barcode: j['barcode'] ?? '',
-      );
+    id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
+    attributes: (j['attributes'] ?? {}) as Map<String, dynamic>,
+    stockQty: (j['stock_qty'] ?? 0) is num
+        ? (j['stock_qty'] as num).toInt()
+        : 0,
+    priceOverride: j['price_override'] == null
+        ? null
+        : double.tryParse('${j['price_override']}'),
+    sku: j['sku'] ?? '',
+    barcode: j['barcode'] ?? '',
+  );
 }
 
 class CatalogItem {
@@ -215,24 +238,28 @@ class CatalogItem {
   String get effectiveUnitLabel => isService ? '' : unit;
 
   static CatalogItem fromJson(Map<String, dynamic> j) => CatalogItem(
-        id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
-        type: j['type'] ?? 'product',
-        name: j['name'] ?? '',
-        price: double.tryParse('${j['price']}') ?? 0,
-        cost: j['cost'] == null ? null : double.tryParse('${j['cost']}'),
-        category: j['category'] == null ? null : int.tryParse('${j['category']}'),
-        categoryName: j['category_name'],
-        description: j['description'] ?? '',
-        stockQty: _asInt(j['stock_qty']),
-        lowStockThreshold: _asInt(j['low_stock_threshold'], 5),
-        barcode: j['barcode'] ?? '',
-        unit: (j['unit'] ?? 'pc').toString(),
-        durationMinutes: j['duration_minutes'] == null ? null : int.tryParse('${j['duration_minutes']}'),
-        requiresStock: j['requires_stock'] != false,
-        isActive: j['is_active'] != false,
-        isLowStock: j['is_low_stock'] == true,
-        variants: ((j['variants'] ?? []) as List).map((v) => Variant.fromJson(v as Map<String, dynamic>)).toList(),
-      );
+    id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
+    type: j['type'] ?? 'product',
+    name: j['name'] ?? '',
+    price: double.tryParse('${j['price']}') ?? 0,
+    cost: j['cost'] == null ? null : double.tryParse('${j['cost']}'),
+    category: j['category'] == null ? null : int.tryParse('${j['category']}'),
+    categoryName: j['category_name'],
+    description: j['description'] ?? '',
+    stockQty: _asInt(j['stock_qty']),
+    lowStockThreshold: _asInt(j['low_stock_threshold'], 5),
+    barcode: j['barcode'] ?? '',
+    unit: (j['unit'] ?? 'pc').toString(),
+    durationMinutes: j['duration_minutes'] == null
+        ? null
+        : int.tryParse('${j['duration_minutes']}'),
+    requiresStock: j['requires_stock'] != false,
+    isActive: j['is_active'] != false,
+    isLowStock: j['is_low_stock'] == true,
+    variants: ((j['variants'] ?? []) as List)
+        .map((v) => Variant.fromJson(v as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
 class Customer {
@@ -249,12 +276,12 @@ class Customer {
   bool get owes => balance > 0.009;
 
   static Customer fromJson(Map<String, dynamic> j) => Customer(
-        id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
-        name: j['name'] ?? '',
-        phone: j['phone'] ?? '',
-        notes: j['notes'] ?? '',
-        balance: double.tryParse('${j['balance']}') ?? 0,
-      );
+    id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
+    name: j['name'] ?? '',
+    phone: j['phone'] ?? '',
+    notes: j['notes'] ?? '',
+    balance: double.tryParse('${j['balance']}') ?? 0,
+  );
 }
 
 class LedgerEntry {
@@ -274,14 +301,14 @@ class LedgerEntry {
   final String? staffName;
 
   static LedgerEntry fromJson(Map<String, dynamic> j) => LedgerEntry(
-        id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
-        type: j['type'] ?? '',
-        amount: double.tryParse('${j['amount']}') ?? 0,
-        balanceAfter: double.tryParse('${j['balance_after']}') ?? 0,
-        note: j['note'] ?? '',
-        createdAt: j['created_at'] ?? '',
-        staffName: j['staff_name'],
-      );
+    id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
+    type: j['type'] ?? '',
+    amount: double.tryParse('${j['amount']}') ?? 0,
+    balanceAfter: double.tryParse('${j['balance_after']}') ?? 0,
+    note: j['note'] ?? '',
+    createdAt: j['created_at'] ?? '',
+    staffName: j['staff_name'],
+  );
 }
 
 class PaymentLine {
@@ -296,11 +323,11 @@ class PaymentLine {
   final String referenceNumber, status;
 
   static PaymentLine fromJson(Map<String, dynamic> j) => PaymentLine(
-        method: j['method'] ?? '',
-        amount: double.tryParse('${j['amount']}') ?? 0,
-        referenceNumber: j['reference_number'] ?? '',
-        status: j['status'] ?? 'verified',
-      );
+    method: j['method'] ?? '',
+    amount: double.tryParse('${j['amount']}') ?? 0,
+    referenceNumber: j['reference_number'] ?? '',
+    status: j['status'] ?? 'verified',
+  );
 }
 
 class SaleItemLine {
@@ -314,11 +341,11 @@ class SaleItemLine {
   final double qty, unitPrice, discount;
 
   static SaleItemLine fromJson(Map<String, dynamic> j) => SaleItemLine(
-        name: j['item_name'] ?? j['name_snapshot'] ?? '',
-        qty: double.tryParse('${j['qty']}') ?? 0,
-        unitPrice: double.tryParse('${j['unit_price']}') ?? 0,
-        discount: double.tryParse('${j['discount']}') ?? 0,
-      );
+    name: j['item_name'] ?? j['name_snapshot'] ?? '',
+    qty: double.tryParse('${j['qty']}') ?? 0,
+    unitPrice: double.tryParse('${j['unit_price']}') ?? 0,
+    discount: double.tryParse('${j['discount']}') ?? 0,
+  );
 }
 
 class Sale {
@@ -344,32 +371,43 @@ class Sale {
   final List<PaymentLine> payments;
 
   static Sale fromJson(Map<String, dynamic> j) => Sale(
-        id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
-        receiptNumber: (j['receipt_number'] ?? 0) is num ? (j['receipt_number'] as num).toInt() : 0,
-        total: double.tryParse('${j['total']}') ?? 0,
-        subtotal: double.tryParse('${j['subtotal']}') ?? 0,
-        discountTotal: double.tryParse('${j['discount_total'] ?? '0'}') ?? 0,
-        taxTotal: double.tryParse('${j['tax_total'] ?? '0'}') ?? 0,
-        createdAt: j['created_at'] ?? '',
-        status: j['status'] ?? 'completed',
-        staffName: j['staff_name'],
-        customerName: j['customer_name'],
-        items: ((j['items'] ?? []) as List).map((e) => SaleItemLine.fromJson(e as Map<String, dynamic>)).toList(),
-        payments: ((j['payments'] ?? []) as List).map((e) => PaymentLine.fromJson(e as Map<String, dynamic>)).toList(),
-      );
+    id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
+    receiptNumber: (j['receipt_number'] ?? 0) is num
+        ? (j['receipt_number'] as num).toInt()
+        : 0,
+    total: double.tryParse('${j['total']}') ?? 0,
+    subtotal: double.tryParse('${j['subtotal']}') ?? 0,
+    discountTotal: double.tryParse('${j['discount_total'] ?? '0'}') ?? 0,
+    taxTotal: double.tryParse('${j['tax_total'] ?? '0'}') ?? 0,
+    createdAt: j['created_at'] ?? '',
+    status: j['status'] ?? 'completed',
+    staffName: j['staff_name'],
+    customerName: j['customer_name'],
+    items: ((j['items'] ?? []) as List)
+        .map((e) => SaleItemLine.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    payments: ((j['payments'] ?? []) as List)
+        .map((e) => PaymentLine.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
 class HeldSaleInfo {
-  HeldSaleInfo({required this.id, required this.label, required this.payload, required this.createdAt});
+  HeldSaleInfo({
+    required this.id,
+    required this.label,
+    required this.payload,
+    required this.createdAt,
+  });
   final int id;
   final String label, createdAt;
   final Map<String, dynamic> payload;
   static HeldSaleInfo fromJson(Map<String, dynamic> j) => HeldSaleInfo(
-        id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
-        label: j['label'] ?? '',
-        payload: (j['payload'] ?? {}) as Map<String, dynamic>,
-        createdAt: j['created_at'] ?? '',
-      );
+    id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
+    label: j['label'] ?? '',
+    payload: (j['payload'] ?? {}) as Map<String, dynamic>,
+    createdAt: j['created_at'] ?? '',
+  );
 }
 
 class StaffMember {
@@ -392,16 +430,19 @@ class StaffMember {
   final int salesTodayCount;
 
   static StaffMember fromJson(Map<String, dynamic> j) => StaffMember(
-        id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
-        name: j['name'] ?? '',
-        phone: j['phone'] ?? '',
-        role: j['role'] ?? 'staff',
-        commissionPercent: double.tryParse('${j['commission_percent'] ?? '0'}') ?? 0,
-        active: j['active'] != false,
-        branchId: j['branch'] == null ? null : int.tryParse('${j['branch']}'),
-        salesTodayCount: (j['sales_today_count'] ?? 0) is num ? (j['sales_today_count'] as num).toInt() : 0,
-        salesTodayTotal: double.tryParse('${j['sales_today_total'] ?? '0'}') ?? 0,
-      );
+    id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
+    name: j['name'] ?? '',
+    phone: j['phone'] ?? '',
+    role: j['role'] ?? 'staff',
+    commissionPercent:
+        double.tryParse('${j['commission_percent'] ?? '0'}') ?? 0,
+    active: j['active'] != false,
+    branchId: j['branch'] == null ? null : int.tryParse('${j['branch']}'),
+    salesTodayCount: (j['sales_today_count'] ?? 0) is num
+        ? (j['sales_today_count'] as num).toInt()
+        : 0,
+    salesTodayTotal: double.tryParse('${j['sales_today_total'] ?? '0'}') ?? 0,
+  );
 }
 
 class Expense {
@@ -420,13 +461,13 @@ class Expense {
   final int? categoryId;
 
   static Expense fromJson(Map<String, dynamic> j) => Expense(
-        id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
-        amount: double.tryParse('${j['amount']}') ?? 0,
-        note: j['note'] ?? '',
-        date: j['date'] ?? '',
-        categoryName: j['category_name'],
-        categoryId: j['category'] == null ? null : int.tryParse('${j['category']}'),
-      );
+    id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
+    amount: double.tryParse('${j['amount']}') ?? 0,
+    note: j['note'] ?? '',
+    date: j['date'] ?? '',
+    categoryName: j['category_name'],
+    categoryId: j['category'] == null ? null : int.tryParse('${j['category']}'),
+  );
 }
 
 class ExpenseCategory {
@@ -434,9 +475,9 @@ class ExpenseCategory {
   final int id;
   final String name;
   static ExpenseCategory fromJson(Map<String, dynamic> j) => ExpenseCategory(
-        id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
-        name: j['name'] ?? '',
-      );
+    id: j['id'] is int ? j['id'] : int.tryParse('${j['id']}') ?? 0,
+    name: j['name'] ?? '',
+  );
 }
 
 // ------------------------------------------------------------- reports
@@ -459,14 +500,21 @@ class DashboardData {
     final today = (j['today'] ?? {}) as Map<String, dynamic>;
     return DashboardData(
       todayTotal: double.tryParse('${today['total'] ?? '0'}') ?? 0,
-      todayCount: (today['count'] ?? 0) is num ? (today['count'] as num).toInt() : 0,
-      yesterdayTotal: double.tryParse('${today['yesterday_total'] ?? '0'}') ?? 0,
+      todayCount: (today['count'] ?? 0) is num
+          ? (today['count'] as num).toInt()
+          : 0,
+      yesterdayTotal:
+          double.tryParse('${today['yesterday_total'] ?? '0'}') ?? 0,
       weekTotal: double.tryParse('${j['week_total'] ?? '0'}') ?? 0,
-      lowStockCount: (j['low_stock_count'] ?? 0) is num ? (j['low_stock_count'] as num).toInt() : 0,
+      lowStockCount: (j['low_stock_count'] ?? 0) is num
+          ? (j['low_stock_count'] as num).toInt()
+          : 0,
       topItems: ((j['top_items'] ?? []) as List)
           .map((e) => TopItem.fromJson(e as Map<String, dynamic>))
           .toList(),
-      trendPct: today['trend_pct'] == null ? null : double.tryParse('${today['trend_pct']}'),
+      trendPct: today['trend_pct'] == null
+          ? null
+          : double.tryParse('${today['trend_pct']}'),
     );
   }
 }
@@ -476,10 +524,10 @@ class TopItem {
   final String name;
   final double qty, revenue;
   static TopItem fromJson(Map<String, dynamic> j) => TopItem(
-        name: j['name'] ?? '',
-        qty: double.tryParse('${j['qty']}') ?? 0,
-        revenue: double.tryParse('${j['revenue']}') ?? 0,
-      );
+    name: j['name'] ?? '',
+    qty: double.tryParse('${j['qty']}') ?? 0,
+    revenue: double.tryParse('${j['revenue']}') ?? 0,
+  );
 }
 
 class SalesReport {
@@ -498,13 +546,19 @@ class SalesReport {
   final List<StaffSlice> byStaff;
 
   static SalesReport fromJson(Map<String, dynamic> j) => SalesReport(
-        total: double.tryParse('${j['total'] ?? '0'}') ?? 0,
-        count: (j['count'] ?? 0) is num ? (j['count'] as num).toInt() : 0,
-        average: double.tryParse('${j['average'] ?? '0'}') ?? 0,
-        series: ((j['series'] ?? []) as List).map((e) => SeriesPoint.fromJson(e as Map<String, dynamic>)).toList(),
-        byMethod: ((j['by_method'] ?? []) as List).map((e) => MethodSlice.fromJson(e as Map<String, dynamic>)).toList(),
-        byStaff: ((j['by_staff'] ?? []) as List).map((e) => StaffSlice.fromJson(e as Map<String, dynamic>)).toList(),
-      );
+    total: double.tryParse('${j['total'] ?? '0'}') ?? 0,
+    count: (j['count'] ?? 0) is num ? (j['count'] as num).toInt() : 0,
+    average: double.tryParse('${j['average'] ?? '0'}') ?? 0,
+    series: ((j['series'] ?? []) as List)
+        .map((e) => SeriesPoint.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    byMethod: ((j['by_method'] ?? []) as List)
+        .map((e) => MethodSlice.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    byStaff: ((j['by_staff'] ?? []) as List)
+        .map((e) => StaffSlice.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
 class SeriesPoint {
@@ -513,10 +567,10 @@ class SeriesPoint {
   final double total;
   final int count;
   static SeriesPoint fromJson(Map<String, dynamic> j) => SeriesPoint(
-        date: j['date'] ?? '',
-        total: double.tryParse('${j['total']}') ?? 0,
-        count: (j['count'] ?? 0) is num ? (j['count'] as num).toInt() : 0,
-      );
+    date: j['date'] ?? '',
+    total: double.tryParse('${j['total']}') ?? 0,
+    count: (j['count'] ?? 0) is num ? (j['count'] as num).toInt() : 0,
+  );
 }
 
 class MethodSlice {
@@ -525,10 +579,10 @@ class MethodSlice {
   final double total;
   final int count;
   static MethodSlice fromJson(Map<String, dynamic> j) => MethodSlice(
-        method: j['method'] ?? '',
-        total: double.tryParse('${j['total']}') ?? 0,
-        count: (j['count'] ?? 0) is num ? (j['count'] as num).toInt() : 0,
-      );
+    method: j['method'] ?? '',
+    total: double.tryParse('${j['total']}') ?? 0,
+    count: (j['count'] ?? 0) is num ? (j['count'] as num).toInt() : 0,
+  );
 }
 
 class StaffSlice {
@@ -537,10 +591,10 @@ class StaffSlice {
   final double total;
   final int count;
   static StaffSlice fromJson(Map<String, dynamic> j) => StaffSlice(
-        staff: j['staff'] ?? '—',
-        total: double.tryParse('${j['total']}') ?? 0,
-        count: (j['count'] ?? 0) is num ? (j['count'] as num).toInt() : 0,
-      );
+    staff: j['staff'] ?? '—',
+    total: double.tryParse('${j['total']}') ?? 0,
+    count: (j['count'] ?? 0) is num ? (j['count'] as num).toInt() : 0,
+  );
 }
 
 class PnlReport {
@@ -558,14 +612,16 @@ class PnlReport {
   final List<CategorySlice> expenses;
 
   static PnlReport fromJson(Map<String, dynamic> j) => PnlReport(
-        revenue: double.tryParse('${j['revenue'] ?? '0'}') ?? 0,
-        cogs: double.tryParse('${j['cogs'] ?? '0'}') ?? 0,
-        grossProfit: double.tryParse('${j['gross_profit'] ?? '0'}') ?? 0,
-        expenseTotal: double.tryParse('${j['expense_total'] ?? '0'}') ?? 0,
-        netProfit: double.tryParse('${j['net_profit'] ?? '0'}') ?? 0,
-        expenses: ((j['expenses'] ?? []) as List).map((e) => CategorySlice.fromJson(e as Map<String, dynamic>)).toList(),
-        estimateWarning: j['estimate_warning'] == true,
-      );
+    revenue: double.tryParse('${j['revenue'] ?? '0'}') ?? 0,
+    cogs: double.tryParse('${j['cogs'] ?? '0'}') ?? 0,
+    grossProfit: double.tryParse('${j['gross_profit'] ?? '0'}') ?? 0,
+    expenseTotal: double.tryParse('${j['expense_total'] ?? '0'}') ?? 0,
+    netProfit: double.tryParse('${j['net_profit'] ?? '0'}') ?? 0,
+    expenses: ((j['expenses'] ?? []) as List)
+        .map((e) => CategorySlice.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    estimateWarning: j['estimate_warning'] == true,
+  );
 }
 
 class CategorySlice {
@@ -573,7 +629,7 @@ class CategorySlice {
   final String category;
   final double total;
   static CategorySlice fromJson(Map<String, dynamic> j) => CategorySlice(
-        category: j['category'] ?? 'Other',
-        total: double.tryParse('${j['total']}') ?? 0,
-      );
+    category: j['category'] ?? 'Other',
+    total: double.tryParse('${j['total']}') ?? 0,
+  );
 }

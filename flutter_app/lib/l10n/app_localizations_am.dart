@@ -719,4 +719,25 @@ class AppLocalizationsAm extends AppLocalizations {
 
   @override
   String get darkMode => 'ጨለማ ሁነታ';
+
+  @override
+  String get pickLocation => 'የሱቅ አካባቢ ይምረጡ';
+
+  @override
+  String get mapHint => 'ነጥቡን ለማስተካከል ካርታውን ይጎትቱ';
+
+  @override
+  String get saveLocation => 'አካባቢውን አስቀምጥ';
+
+  @override
+  String get detectAddress => 'አድራሻ ይፈልጉ';
+
+  @override
+  String get detectFailed => 'አድራሻውን ማግኘት አልተቻለም — ነጥቡን ማስቀመጥ ይችላሉ።';
+
+  @override
+  String get pickOnMap => 'በካርታ ላይ ይምረጡ';
+
+  @override
+  String get taxId => 'የግብር መለያ ቁጥር (TIN)';
 }

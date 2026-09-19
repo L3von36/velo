@@ -724,4 +724,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get darkMode => 'Dark mode';
+
+  @override
+  String get pickLocation => 'Set shop location';
+
+  @override
+  String get mapHint => 'Drag the map to position the pin';
+
+  @override
+  String get saveLocation => 'Save location';
+
+  @override
+  String get detectAddress => 'Detect address here';
+
+  @override
+  String get detectFailed =>
+      'Couldn\'t detect the address — you can still save the pin.';
+
+  @override
+  String get pickOnMap => 'Pick on map';
+
+  @override
+  String get taxId => 'Tax ID (TIN)';
 }

@@ -233,5 +233,12 @@
   "demoAccounts": "የሙከራ መለያዎች (ለመሙላት ተጫን)",
   "serverUrl": "የሰርቨር አድራሻ",
   "serverUrlHint": "ለሞባይል መተግበሪያዎች፡ የ backend አድራሻዎ",
-  "darkMode": "ጨለማ ሁነታ"
+  "darkMode": "ጨለማ ሁነታ",
+  "pickLocation": "የሱቅ አካባቢ ይምረጡ",
+  "mapHint": "ነጥቡን ለማስተካከል ካርታውን ይጎትቱ",
+  "saveLocation": "አካባቢውን አስቀምጥ",
+  "detectAddress": "አድራሻ ይፈልጉ",
+  "detectFailed": "አድራሻውን ማግኘት አልተቻለም — ነጥቡን ማስቀመጥ ይችላሉ።",
+  "pickOnMap": "በካርታ ላይ ይምረጡ",
+  "taxId": "የግብር መለያ ቁጥር (TIN)"
 }

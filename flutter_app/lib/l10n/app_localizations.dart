@@ -1501,6 +1501,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dark mode'**
   String get darkMode;
+
+  /// No description provided for @pickLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Set shop location'**
+  String get pickLocation;
+
+  /// No description provided for @mapHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag the map to position the pin'**
+  String get mapHint;
+
+  /// No description provided for @saveLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Save location'**
+  String get saveLocation;
+
+  /// No description provided for @detectAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect address here'**
+  String get detectAddress;
+
+  /// No description provided for @detectFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t detect the address — you can still save the pin.'**
+  String get detectFailed;
+
+  /// No description provided for @pickOnMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick on map'**
+  String get pickOnMap;
+
+  /// No description provided for @taxId.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax ID (TIN)'**
+  String get taxId;
 }
 
 class _AppLocalizationsDelegate
