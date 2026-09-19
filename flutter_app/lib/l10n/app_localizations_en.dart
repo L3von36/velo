@@ -143,6 +143,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get more => 'More';
 
   @override
+  String get scanBarcode => 'Scan barcode';
+
+  @override
+  String get scanHint => 'Point the camera at a barcode';
+
+  @override
+  String get barcodeNotFound => 'No item with this barcode';
+
+  @override
   String get appointments => 'Appointments';
 
   @override

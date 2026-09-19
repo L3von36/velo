@@ -142,6 +142,15 @@ class AppLocalizationsAm extends AppLocalizations {
   String get more => 'ተጨማሪ';
 
   @override
+  String get scanBarcode => 'ባርኮድ ቅረብ';
+
+  @override
+  String get scanHint => 'ካሜራውን ወደ ባርኮዱ ያመልክቱ';
+
+  @override
+  String get barcodeNotFound => 'በዚህ ባርኮድ ዕቃ አልተገኘም';
+
+  @override
   String get appointments => 'ቀጠሮዎች';
 
   @override

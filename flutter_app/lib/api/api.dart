@@ -265,6 +265,18 @@ class Api {
         .toList();
   }
 
+  /// Exact barcode lookup for the POS scanner. Returns null when no item
+  /// carries this barcode (RLS scopes the query to the caller's tenant).
+  Future<CatalogItem?> itemByBarcode(String code) async {
+    final rows = await _sb
+        .from('items')
+        .select('*, category:categories(name), variants:item_variants(*)')
+        .eq('barcode', code)
+        .limit(1);
+    if ((rows as List).isEmpty) return null;
+    return CatalogItem.fromJson(_itemJson(rows.first as Map));
+  }
+
   Map<String, dynamic> _itemJson(Map e) {
     final cat = e['category'];
     final vars = ((e['variants'] ?? const []) as List)

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
@@ -11,6 +12,7 @@ import '../../theme/app_theme.dart' show AppTheme;
 import '../../utils/format.dart';
 import '../../widgets/common.dart';
 import 'checkout_sheet.dart';
+import 'scanner_screen.dart';
 
 /// D1 — POS main screen. Split view on wide screens (grid left ~65%,
 /// live cart right ~35%); cart-as-bottom-sheet on mobile. Zero-lag taps:
@@ -40,6 +42,46 @@ class _PosScreenState extends ConsumerState<PosScreen> {
   void dispose() {
     _search.dispose();
     super.dispose();
+  }
+
+  /// Camera barcode scanning is supported on Android/iOS/macOS and web;
+  /// Windows/Linux desktop builds have no camera plugin, so hide the button.
+  bool get _scannerSupported =>
+      kIsWeb ||
+      !(defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux);
+
+  Future<void> _scan() async {
+    final checkout = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BarcodeScannerScreen(
+          lookup: (code) async {
+            try {
+              return await Api().itemByBarcode(code);
+            } catch (_) {
+              return null;
+            }
+          },
+          onItem: (item) {
+            if (item.variants.length > 1) {
+              // Variant items need a manual pick — close the scanner first.
+              Navigator.of(context).pop();
+              _pickVariant(item);
+            } else {
+              try {
+                ref.read(cartProvider.notifier).add(item);
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content:
+                        Text(e.toString().replaceFirst('Exception: ', ''))));
+              }
+            }
+          },
+        ),
+      ),
+    );
+    if (checkout == true && mounted) _openCheckout();
   }
 
   @override
@@ -73,7 +115,13 @@ class _PosScreenState extends ConsumerState<PosScreen> {
                         ref.read(catalogProvider.notifier).setSearch('');
                       },
                     )
-                  : const Icon(Icons.qr_code_scanner_rounded),
+                  : _scannerSupported
+                      ? IconButton(
+                          icon: const Icon(Icons.qr_code_scanner_rounded),
+                          tooltip: t(context).scanBarcode,
+                          onPressed: _scan,
+                        )
+                      : null,
             ),
             onChanged: (v) {
               setState(() => _searchText = v);

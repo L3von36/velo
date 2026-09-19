@@ -362,6 +362,24 @@ abstract class AppLocalizations {
   /// **'More'**
   String get more;
 
+  /// No description provided for @scanBarcode.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan barcode'**
+  String get scanBarcode;
+
+  /// No description provided for @scanHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Point the camera at a barcode'**
+  String get scanHint;
+
+  /// No description provided for @barcodeNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No item with this barcode'**
+  String get barcodeNotFound;
+
   /// No description provided for @appointments.
   ///
   /// In en, this message translates to:
