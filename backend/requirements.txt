@@ -2,4 +2,4 @@ Django>=5.2,<5.3
 psycopg[binary]>=3.2
 whitenoise>=6.7
 gunicorn>=23.0
-unfold>=0.107
+django-unfold>=0.107

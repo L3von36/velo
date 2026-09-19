@@ -1,5 +1,7 @@
 # Vercel serverless runtime deps (Django 5.2 LTS = widest Python compatibility)
+# NOTE: the package is `django-unfold` — plain `unfold` on PyPI is an unrelated
+# scientific-data package that bloats the lambda bundle past the 500 MB limit.
 Django>=5.2,<5.3
 psycopg[binary]>=3.2
 whitenoise>=6.7
-unfold>=0.107
+django-unfold>=0.107
