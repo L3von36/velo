@@ -75,7 +75,9 @@ WSGI_APPLICATION = "config.wsgi.application"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        # DIRS precedes APP_DIRS, so adminpanel's admin/login.html outranks
+        # the one bundled with unfold (which sits earlier in INSTALLED_APPS).
+        "DIRS": [BASE_DIR / "adminpanel" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -143,13 +145,14 @@ UNFOLD = {
     "SITE_TITLE": "Velo Admin",
     "SITE_HEADER": "Velo Owner Console",
     "SITE_SUBHEADER": "Live platform data · Addis Ababa time",
-    "SITE_VERSION": "v1.6.0",
+    "SITE_VERSION": "v1.8.0",
     "SITE_URL": "/admin/",
     "SITE_LOGO": "/static/adminpanel/velo.svg",
     "SITE_FAVICONS": [
         {"href": "/static/adminpanel/velo.svg", "type": "image/svg+xml"},
     ],
-    "LOGIN": {"image": "/static/adminpanel/velo.svg"},
+    # NOTE: no UNFOLD "LOGIN" image — the custom login template renders a
+    # contained brand panel instead of the cover-cropped watermark.
     "COLORS": {"primary": _VELO_GREEN},
     "STYLES": ["/static/adminpanel/velo_admin.css"],
     "SIDEBAR": {

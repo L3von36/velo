@@ -51,6 +51,9 @@ class Shop(models.Model):
     longitude = models.FloatField(null=True, blank=True)
     tin = models.CharField(max_length=64, blank=True, default="")
     created_at = models.DateTimeField()
+    is_suspended = models.BooleanField(default=False)
+    suspended_at = models.DateTimeField(null=True, blank=True)
+    suspended_note = models.TextField(blank=True, default="")
 
     class Meta:
         managed = False
@@ -65,6 +68,10 @@ class Shop(models.Model):
     @property
     def has_location(self):
         return self.latitude is not None and self.longitude is not None
+
+    @property
+    def is_active_tenant(self):
+        return not self.is_suspended
 
 
 class Staff(models.Model):

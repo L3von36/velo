@@ -1,0 +1,104 @@
+{% extends "unfold/layouts/unauthenticated.html" %}
+{% load i18n static unfold %}
+
+{% comment %}
+Velo custom login (v1.8.0).
+Replaces Unfold's cropped background-image treatment (the logo was being
+scaled with `background-size: cover`, chopping off the right side of the
+"V") with a purpose-built split screen: form on the left, contained brand
+panel on the right. Nothing is ever cropped again.
+{% endcomment %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    {{ form.media }}
+{% endblock %}
+
+{% block title %}
+    {{ title }} | {{ site_title }}
+{% endblock %}
+
+{% block base %}
+    <div id="page" class="vp-login bg-white flex min-h-screen dark:bg-base-900">
+
+        {# ---------- left: form ---------- #}
+        <div class="flex grow items-center justify-center mx-auto px-4 relative">
+            <div class="w-full sm:w-96">
+
+                {# ---------- heading ---------- #}
+                <div class="vp-login-head">
+                    <span class="vp-login-eyebrow">Velo Owner Console</span>
+                    <h1 class="vp-login-title">Welcome back</h1>
+                    <p class="vp-login-sub">Sign in to manage tenants, revenue and platform health.</p>
+                </div>
+
+                {% include "unfold/helpers/messages.html" %}
+
+                {% if form.errors or form.non_field_errors %}
+                    <div class="flex flex-col gap-4 mb-8 *:mb-0">
+                        {% include "unfold/helpers/messages/errornote.html" with errors=form.errors %}
+                        {% include "unfold/helpers/messages/error.html" with errors=form.non_field_errors %}
+                        {% if user.is_authenticated %}
+                            {% blocktranslate trimmed asvar message %}
+                                You are authenticated as {{ username }}, but are not authorized to
+                                access this page. Would you like to login to a different account?
+                            {% endblocktranslate %}
+                            {% include "unfold/helpers/messages/error.html" with error=message %}
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                <form action="{{ app_path }}" method="post" id="login-form" class="vp-login-form">
+                    {% csrf_token %}
+                    {% include "unfold/helpers/field.html" with field=form.username %}
+                    {% include "unfold/helpers/field.html" with field=form.password %}
+
+                    <div class="flex flex-col gap-3 mt-6">
+                        {% component "unfold/components/button.html" with submit=1 variant="primary" class="submit-row w-full" %}
+                            {% translate 'Log in' %} <span class="material-symbols-outlined relative right-0 transition-all group-hover:-right-1 text-sm">arrow_forward</span>
+                        {% endcomponent %}
+                    </div>
+                </form>
+
+                <p class="vp-login-foot">
+                    <span class="material-symbols-outlined">shield_lock</span>
+                    Owner access only · every action is logged
+                </p>
+            </div>
+
+            {% include "unfold/helpers/unauthenticated_header.html" %}
+        </div>
+
+        {# ---------- right: brand panel (contained, never cropped) ---------- #}
+        <aside class="vp-login-brand hidden xl:flex grow max-w-3xl 2xl:max-w-4xl flex-col items-center justify-center gap-8 p-12">
+            <div class="vp-login-logo-card">
+                <img src="/static/adminpanel/velo.svg" alt="Velo" draggable="false">
+            </div>
+
+            <div class="vp-login-copy">
+                <h2>The operating system for Ethiopian shops.</h2>
+                <p>POS, inventory, customers and payments — in one place.</p>
+            </div>
+
+            <ul class="vp-login-points">
+                <li>
+                    <span class="material-symbols-outlined">storefront</span>
+                    <div><b>Multi-tenant platform</b><span>Every shop, plan and user — live from Supabase</span></div>
+                </li>
+                <li>
+                    <span class="material-symbols-outlined">payments</span>
+                    <div><b>Telebirr &amp; CBE native</b><span>ETB-first with verified mobile payments</span></div>
+                </li>
+                <li>
+                    <span class="material-symbols-outlined">translate</span>
+                    <div><b>Amharic &amp; English</b><span>Built for how Ethiopian businesses actually work</span></div>
+                </li>
+            </ul>
+
+            <div class="vp-login-meta">
+                <span class="vp-chip">v1.8.0</span>
+                <span>Addis Ababa time · data served live</span>
+            </div>
+        </aside>
+    </div>
+{% endblock %}

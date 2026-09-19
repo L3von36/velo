@@ -13,6 +13,9 @@
     <div class="vp-hero-badges">
       <span class="vp-chip vp-chip-green"><span class="material-symbols-outlined">database</span> Supabase · bypasses RLS</span>
       <span class="vp-chip"><span class="material-symbols-outlined">lock</span> Read-only console</span>
+      {% if kpi.cards.shops_suspended %}
+      <span class="vp-chip vp-chip-red"><span class="material-symbols-outlined">block</span> {{ kpi.cards.shops_suspended }} suspended</span>
+      {% endif %}
     </div>
   </div>
 
@@ -50,25 +53,64 @@
     </div>
   </div>
 
-  {# ---------- 14-day sales chart ---------- #}
+  {# ---------- growth & retention row (MRR / churn) ---------- #}
+  <div class="vp-section-title">
+    <h2><span class="material-symbols-outlined">rocket_launch</span> Growth &amp; retention</h2>
+    <span class="vp-muted">commercial lens · plan price map: free 0 / starter 299 / pro 599 / business 999 ETB·mo</span>
+  </div>
+  <div class="vp-cards vp-cards-tight">
+    <div class="vp-card vp-card-accent">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-green">payments</span>MRR</div>
+      <div class="vp-v">ETB {{ kpi.growth.mrr }}</div>
+      <div class="vp-s"><b>ARR</b> ETB {{ kpi.growth.arr }}</div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-blue">workspace_premium</span>Paying tenants</div>
+      <div class="vp-v">{{ kpi.growth.paying }}</div>
+      <div class="vp-s">ARPU <b>ETB {{ kpi.growth.arpu }}</b> / mo</div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-red">directions_run</span>Churn · 30 days</div>
+      <div class="vp-v">{{ kpi.growth.churn_rate }}%</div>
+      <div class="vp-s"><b>{{ kpi.growth.churned }}</b> of {{ kpi.growth.mature }} tenants silent 30d+</div>
+    </div>
+    <div class="vp-card">
+      <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-violet">monitor_heart</span>Active tenants · 30d</div>
+      <div class="vp-v">{{ kpi.growth.active_30d }}</div>
+      <div class="vp-s"><b>{{ kpi.growth.activation_rate }}%</b> of tenants ever made a sale</div>
+    </div>
+  </div>
+
+  {# ---------- sales chart with period selector ---------- #}
   <div class="vp-panel">
     <div class="vp-panel-head">
-      <h2><span class="material-symbols-outlined">bar_chart</span> Sales — last 14 days</h2>
-      <span class="vp-muted">ETB per day · Addis Ababa calendar</span>
+      <h2><span class="material-symbols-outlined">bar_chart</span>
+        {% if kpi.period == 90 %} Sales — weekly, last 90 days {% else %} Sales — last {{ kpi.period }} days {% endif %}
+      </h2>
+      <div class="vp-panel-head-right">
+        <span class="vp-muted vp-hide-sm">ETB {% if kpi.period == 90 %}per week{% else %}per day{% endif %} · Addis Ababa</span>
+        <div class="vp-seg" role="tablist" aria-label="Chart period">
+          {% for p in kpi.periods %}
+          <a href="?period={{ p }}"
+             class="vp-seg-btn{% if p == kpi.period %} is-active{% endif %}"
+             {% if p == kpi.period %}aria-current="true"{% endif %}>{{ p }}d</a>
+          {% endfor %}
+        </div>
+      </div>
     </div>
     {% if kpi.max_daily > 0 %}
     <div class="vp-chart">
-      {% for r in kpi.series_14d %}
+      {% for r in kpi.series %}
       <div class="vp-col" title="{{ r.label }} — ETB {{ r.total|floatformat:2 }} ({{ r.cnt }} sales)">
         <div class="vp-bar-track">
           <div class="vp-bar{% if r.total == 0 %} is-zero{% endif %}" style="height: {% widthratio r.total kpi.max_daily 100 %}%"></div>
         </div>
-        <div class="vp-lab{% if forloop.counter0|divisibleby:2 %}{% else %} vp-lab-hidden{% endif %}">{{ r.label }}</div>
+        <div class="vp-lab{% if kpi.period <= 30 and forloop.counter0|divisibleby:2 %}{% else %} vp-lab-hidden{% endif %}">{{ r.label }}</div>
       </div>
       {% endfor %}
     </div>
     {% else %}
-    <p class="vp-empty">No sales recorded in the last 14 days yet.</p>
+    <p class="vp-empty">No sales recorded in the last {{ kpi.period }} days yet.</p>
     {% endif %}
   </div>
 
@@ -80,14 +122,14 @@
         <a class="vp-link" href="/admin/adminpanel/shop/">View all →</a>
       </div>
       <table class="vp-table">
-        <thead><tr><th>Name</th><th>Type</th><th>Plan</th><th>Phone</th><th>Joined</th></tr></thead>
+        <thead><tr><th>Name</th><th>Type</th><th>Plan</th><th>Status</th><th>Joined</th></tr></thead>
         <tbody>
           {% for s in kpi.recent_shops %}
           <tr>
             <td><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ s.id }}/change/">{{ s.name }}</a></td>
             <td><span class="vp-tag">{{ s.business_type }}</span></td>
             <td><span class="vp-tag vp-tag-green">{{ s.plan }}</span></td>
-            <td class="vp-dim">{{ s.phone|default:"—" }}</td>
+            <td>{% if s.is_suspended %}<span class="vp-pill vp-pill-suspended">suspended</span>{% else %}<span class="vp-pill vp-pill-active">active</span>{% endif %}</td>
             <td class="vp-dim">{{ s.created_at|date:"M d, H:i" }}</td>
           </tr>
           {% empty %}<tr><td colspan="5" class="vp-empty">No shops yet.</td></tr>
@@ -106,7 +148,7 @@
         <tbody>
           {% for s in kpi.recent_sales %}
           <tr>
-            <td>{{ s.shop_name }}</td>
+            <td>{{ s.shop_name }}{% if s.shop_suspended %} <span class="vp-tag vp-tag-red" title="This tenant is currently suspended">suspended</span>{% endif %}</td>
             <td class="vp-num"><b>{{ s.total|floatformat:2 }}</b></td>
             <td><span class="vp-tag">{{ s.method }}</span></td>
             <td><span class="vp-pill vp-pill-{{ s.status }}">{{ s.status }}</span></td>
@@ -129,7 +171,7 @@
       {% for t in kpi.top_shops %}
       <div class="vp-rank">
         <div class="vp-rank-line">
-          <span class="vp-rank-name">{{ t.name }}</span>
+          <span class="vp-rank-name"><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ t.id }}/change/">{{ t.name }}</a></span>
           <span class="vp-rank-val"><b>ETB {{ t.total|floatformat:2 }}</b> · {{ t.cnt }} sales</span>
         </div>
         <div class="vp-progress">
@@ -162,6 +204,61 @@
         {% endfor %}
       </div>
     </div>
+  </div>
+
+  {# ---------- danger zone: tenant suspension ---------- #}
+  <div class="vp-panel vp-danger">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">dangerous</span> Danger zone</h2>
+      <span class="vp-muted">Suspension only flags the tenant — data is never touched, and it is reversible.</span>
+    </div>
+
+    {% if kpi.cards.shops_suspended %}
+    <table class="vp-table vp-danger-table">
+      <thead><tr><th>Suspended tenant</th><th>Reason</th><th>Since</th><th class="vp-num">Action</th></tr></thead>
+      <tbody>
+        {% for t in kpi.tenants %}
+        {% if t.is_suspended %}
+        <tr>
+          <td><a class="vp-link-strong" href="/admin/adminpanel/shop/{{ t.id }}/change/">{{ t.name }}</a> <span class="vp-dim">#{{ t.id }}</span></td>
+          <td class="vp-dim">{{ t.suspended_note|default:"—" }}</td>
+          <td class="vp-dim">{{ t.suspended_at|date:"M d, H:i" }}</td>
+          <td class="vp-num">
+            <form method="post" action="{% url 'velo_admin:velo_tenant_restore' t.id %}" class="vp-inline-form"
+                  onsubmit="return confirm('Restore “{{ t.name|escapejs }}”? The tenant will regain full access.');">
+              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+              <button type="submit" class="vp-btn vp-btn-ghost">Restore access</button>
+            </form>
+          </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <form method="post" action="{% url 'velo_admin:velo_tenant_suspend_any' %}" id="vp-suspend-form" class="vp-suspend-form"
+          onsubmit="var n=this.shop_id.options[this.shop_id.selectedIndex];return confirm('Suspend “'+n.text+'”? They will be flagged on the platform. You can restore them any time.');">
+      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+      <div class="vp-suspend-row">
+        <label>
+          <span>Tenant</span>
+          <select name="shop_id" required>
+            <option value="" disabled selected>Choose a tenant…</option>
+            {% for t in kpi.tenants %}
+            {% if not t.is_suspended %}
+            <option value="{{ t.id }}">{{ t.name }}{% if t.sales_total == 0 %} (no sales yet){% endif %}</option>
+            {% endif %}
+            {% endfor %}
+          </select>
+        </label>
+        <label class="vp-grow">
+          <span>Reason (shown in the console, kept on record)</span>
+          <input type="text" name="note" maxlength="200" placeholder="e.g. trial ended — follow up before reactivation">
+        </label>
+        <button type="submit" class="vp-btn vp-btn-danger"><span class="material-symbols-outlined">block</span> Suspend tenant</button>
+      </div>
+    </form>
   </div>
 
 </div>

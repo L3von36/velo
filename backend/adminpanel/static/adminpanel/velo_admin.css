@@ -312,3 +312,308 @@ html.dark .vp-rank-val b { color: var(--color-primary-400); }
   color: var(--vp-muted);
   font-style: italic;
 }
+
+/* ==========================================================================
+   v1.8.0 — growth row, period selector, danger zone, custom login
+   ========================================================================== */
+
+/* ---------- section title between card rows ---------- */
+.vp-section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 26px 0 12px;
+}
+.vp-section-title h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-font-important-light, #101828);
+}
+html.dark .vp-section-title h2 { color: var(--color-font-important-dark, #f2f4f7); }
+.vp-section-title h2 .material-symbols-outlined {
+  font-size: 18px; width: 18px; height: 18px; color: var(--color-primary-600);
+}
+html.dark .vp-section-title h2 .material-symbols-outlined { color: var(--color-primary-400); }
+
+/* ---------- tight growth cards ---------- */
+.vp-cards-tight { margin-bottom: 8px; }
+.vp-card-accent {
+  border-color: color-mix(in srgb, var(--color-primary-500) 45%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary-500) 10%, var(--vp-card-bg)),
+    var(--vp-card-bg) 60%);
+}
+
+/* ---------- period selector ---------- */
+.vp-panel-head-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.vp-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--vp-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-base-500) 8%, transparent);
+}
+.vp-seg-btn {
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--vp-muted);
+  text-decoration: none !important;
+  transition: all .15s ease;
+}
+.vp-seg-btn:hover { color: var(--color-primary-600); }
+html.dark .vp-seg-btn:hover { color: var(--color-primary-300); }
+.vp-seg-btn.is-active {
+  background: var(--vp-card-bg);
+  color: var(--color-primary-700);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, .12);
+}
+html.dark .vp-seg-btn.is-active {
+  background: color-mix(in srgb, var(--color-primary-500) 25%, transparent);
+  color: var(--color-primary-200);
+}
+
+/* ---------- status pills (tenants) ---------- */
+.vp-pill-active { background: color-mix(in srgb, #16803C 14%, transparent); color: #16803C; }
+html.dark .vp-pill-active { color: #4ADE80; }
+.vp-pill-suspended { background: rgba(179, 38, 30, .12); color: #B3261E; }
+html.dark .vp-pill-suspended { color: #F87171; }
+.vp-tag-red { background: rgba(179, 38, 30, .10); color: #B3261E; }
+html.dark .vp-tag-red { color: #F87171; }
+.vp-chip-red {
+  border-color: color-mix(in srgb, #B3261E 40%, transparent);
+  background: color-mix(in srgb, #B3261E 10%, transparent);
+  color: #B3261E;
+}
+html.dark .vp-chip-red { color: #F87171; }
+
+/* ---------- danger zone panel ---------- */
+.vp-danger {
+  border-color: color-mix(in srgb, #B3261E 35%, transparent);
+  background:
+    linear-gradient(180deg, rgba(179, 38, 30, .045), transparent 60%),
+    var(--vp-card-bg);
+}
+.vp-danger .vp-panel-head h2 { color: #B3261E; }
+html.dark .vp-danger .vp-panel-head h2 { color: #F87171; }
+.vp-danger .vp-panel-head h2 .material-symbols-outlined { color: #B3261E; }
+html.dark .vp-danger .vp-panel-head h2 .material-symbols-outlined { color: #F87171; }
+.vp-danger-table { margin-bottom: 16px; }
+
+/* ---------- suspend form ---------- */
+.vp-suspend-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.vp-suspend-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--vp-muted);
+}
+.vp-suspend-row label.vp-grow { flex: 1 1 260px; }
+.vp-suspend-row select,
+.vp-suspend-row input[type="text"] {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--vp-border);
+  border-radius: 10px;
+  background: var(--vp-card-bg);
+  color: var(--color-font-important-light, #101828);
+  font-size: 13.5px;
+  min-width: 100%;
+  max-width: 100%;
+}
+html.dark .vp-suspend-row select,
+html.dark .vp-suspend-row input[type="text"] {
+  color: var(--color-font-important-dark, #f2f4f7);
+  background: color-mix(in srgb, var(--color-base-500) 10%, transparent);
+}
+.vp-suspend-row select:focus,
+.vp-suspend-row input[type="text"]:focus {
+  outline: 2px solid color-mix(in srgb, var(--color-primary-500) 55%, transparent);
+  outline-offset: 1px;
+}
+
+/* ---------- buttons ---------- */
+.vp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none !important;
+  white-space: nowrap;
+  transition: filter .15s ease, background .15s ease;
+}
+.vp-btn .material-symbols-outlined { font-size: 17px; width: 17px; height: 17px; }
+.vp-btn-danger {
+  background: #B3261E;
+  color: #fff !important;
+}
+.vp-btn-danger:hover { filter: brightness(1.08); }
+.vp-btn-ghost {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--color-primary-500) 45%, transparent);
+  color: var(--color-primary-700) !important;
+}
+html.dark .vp-btn-ghost { color: var(--color-primary-300) !important; }
+.vp-btn-ghost:hover { background: color-mix(in srgb, var(--color-primary-500) 12%, transparent); }
+.vp-inline-form { display: inline-flex; }
+
+/* ---------- danger fieldset on the shop change form ---------- */
+fieldset.vp-danger-zone {
+  border: 1px solid color-mix(in srgb, #B3261E 40%, transparent) !important;
+  border-left: 4px solid #B3261E;
+  border-radius: 12px;
+  background: rgba(179, 38, 30, .04);
+  padding: 6px 14px 16px;
+  margin-top: 26px;
+}
+fieldset.vp-danger-zone > h2 {
+  color: #B3261E !important;
+}
+html.dark fieldset.vp-danger-zone {
+  background: rgba(179, 38, 30, .07);
+}
+
+/* ---------- custom login page ---------- */
+.vp-login .vp-login-head { margin-bottom: 26px; }
+.vp-login-eyebrow {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--color-primary-600);
+  margin-bottom: 8px;
+}
+html.dark .vp-login-eyebrow { color: var(--color-primary-400); }
+.vp-login-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-font-important-light, #101828);
+  margin: 0 0 6px;
+}
+html.dark .vp-login-title { color: var(--color-font-important-dark, #f2f4f7); }
+.vp-login-sub { font-size: 13.5px; color: var(--color-base-500, #6b7280); margin: 0; }
+.vp-login-foot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 22px;
+  font-size: 12px;
+  color: var(--color-base-500, #6b7280);
+}
+.vp-login-foot .material-symbols-outlined { font-size: 15px; width: 15px; height: 15px; }
+
+/* right-hand brand panel — logo is CONTAINED, never cropped */
+.vp-login-brand {
+  background:
+    radial-gradient(900px 480px at 85% -10%, rgba(232, 162, 0, .16), transparent 60%),
+    radial-gradient(720px 420px at 10% 110%, rgba(255, 255, 255, .10), transparent 55%),
+    linear-gradient(160deg, #0E7A3D 0%, #0A5C2E 55%, #07401F 100%);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+.vp-login-brand::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.045) 0 1px, transparent 1px 56px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.045) 0 1px, transparent 1px 56px);
+  pointer-events: none;
+}
+.vp-login-brand > * { position: relative; }
+.vp-login-logo-card {
+  background: #ffffff;
+  border-radius: 26px;
+  padding: 20px 30px;
+  box-shadow: 0 24px 60px rgba(4, 34, 16, .45);
+}
+.vp-login-logo-card img {
+  width: 128px;
+  height: auto;
+  display: block;
+}
+.vp-login-copy { text-align: center; max-width: 420px; }
+.vp-login-copy h2 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+.vp-login-copy p { margin: 0; font-size: 14px; color: rgba(255, 255, 255, .82); }
+.vp-login-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 420px;
+}
+.vp-login-points li {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 14px;
+  padding: 13px 16px;
+  backdrop-filter: blur(4px);
+}
+.vp-login-points .material-symbols-outlined {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  color: #FCD34D;
+  margin-top: 2px;
+}
+.vp-login-points b { display: block; font-size: 13.5px; }
+.vp-login-points li span:not(.material-symbols-outlined) {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, .78);
+}
+.vp-login-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, .72);
+}
+.vp-login-meta .vp-chip {
+  background: rgba(255, 255, 255, .10);
+  border-color: rgba(255, 255, 255, .22);
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .vp-hide-sm { display: none; }
+  .vp-suspend-row label { min-width: 100%; }
+}

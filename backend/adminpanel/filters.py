@@ -79,3 +79,20 @@ class PaymentStatusFilter(DistinctDropdownFilter):
 class StockReasonFilter(DistinctDropdownFilter):
     field_name = "reason"
     limit = 25
+
+
+class SuspendedFilter(DropdownFilter):
+    """Tenant status dropdown: all / active / suspended."""
+
+    title = "Status"
+    parameter_name = "suspended"
+
+    def lookups(self, request, model_admin):
+        return [("active", "Active"), ("suspended", "Suspended")]
+
+    def queryset(self, request, queryset):
+        if self.value() == "suspended":
+            return queryset.filter(is_suspended=True)
+        if self.value() == "active":
+            return queryset.filter(is_suspended=False)
+        return queryset
