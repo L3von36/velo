@@ -11,6 +11,11 @@
       <p>Live data from Supabase · {% now "D, M d Y · H:i" %} EAT</p>
     </div>
     <div class="vp-hero-badges">
+      {% if kpi.radar.heartbeat.status == 'silent' %}
+      <span class="vp-chip vp-chip-red"><span class="material-symbols-outlined">monitor_heart</span> Platform silent {{ kpi.radar.heartbeat.ago_text }}</span>
+      {% elif kpi.radar.heartbeat.status == 'cooling' %}
+      <span class="vp-chip vp-chip-gold"><span class="material-symbols-outlined">monitor_heart</span> Platform cooling · last sale {{ kpi.radar.heartbeat.ago_text }} ago</span>
+      {% endif %}
       <span class="vp-chip vp-chip-green"><span class="material-symbols-outlined">database</span> Supabase · bypasses RLS</span>
       <span class="vp-chip"><span class="material-symbols-outlined">admin_panel_settings</span> Owner privileges · full control</span>
       <a class="vp-chip vp-chip-green" href="/admin/money-radar/" style="text-decoration:none"><span class="material-symbols-outlined">radar</span> Money Radar</a>
@@ -91,6 +96,11 @@
     </div>
   </div>
   <div class="vp-cards vp-cards-tight">
+    <div class="vp-card">
+      <div class="vp-k"><span class="vp-hb-dot vp-hb-dot-sm vp-hb-dot-{{ kpi.radar.heartbeat.status }}" aria-hidden="true"></span>Heartbeat</div>
+      <div class="vp-v">{{ kpi.radar.heartbeat.pulse }}</div>
+      <div class="vp-s">{{ kpi.radar.heartbeat.card_sub }}</div>
+    </div>
     <div class="vp-card vp-card-accent">
       <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-green">trending_up</span>Upsell pipeline</div>
       <div class="vp-v">ETB {{ kpi.radar.pipeline_mrr }}</div>

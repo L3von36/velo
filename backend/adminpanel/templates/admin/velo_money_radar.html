@@ -16,6 +16,16 @@
     </div>
   </div>
 
+  {# ---------- platform heartbeat (v2.1.0) ---------- #}
+  <div class="vp-heartbeat vp-hb-{{ radar.heartbeat.status }}" role="status">
+    <span class="vp-hb-dot" aria-hidden="true"></span>
+    <div class="vp-hb-body">
+      <div class="vp-hb-head">{{ radar.heartbeat.headline }}</div>
+      <div class="vp-hb-sub">{{ radar.heartbeat.detail }}</div>
+    </div>
+    <span class="vp-hb-tag vp-hb-tag-{{ radar.heartbeat.status }}">{{ radar.heartbeat.pulse }}</span>
+  </div>
+
   {# ---------- pipeline summary ---------- #}
   <div class="vp-cards vp-cards-tight">
     <div class="vp-card vp-card-accent">

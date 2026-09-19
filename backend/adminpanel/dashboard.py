@@ -20,7 +20,15 @@ v2.0.0 additions — MONEY RADAR (revenue intelligence):
   revenue the platform can recover.
 - Platform benchmark: per-tenant percentile of 30-day revenue vs the
   platform median, so the owner can spot outliers in both directions.
+
+v2.1.0 addition — PLATFORM HEARTBEAT:
+- Watches the platform as a whole, complementing the per-tenant churn logic:
+  hours since the last ring of the register (live < 24h / cooling 24–48h /
+  silent 48h+ / empty), 24h sales momentum vs the prior 24h, how many
+  tenants are actively selling, and the consecutive sale-day streak —
+  so a platform-wide stall is flagged in hours, not weeks.
 """
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db import connection
@@ -348,6 +356,123 @@ def _classify(row: dict, median30: float) -> dict:
             "rev_life": rev_life, "price_now": price_now}
 
 
+def _sale_streak(days: list, today) -> tuple[int, bool]:
+    """Consecutive sale-day streak ending at today (or yesterday, with
+    today still quiet → flagged at risk). Pure helper, unit-testable."""
+    streak, streak_at_risk = 0, False
+    if days:
+        cursor = days[0]  # count backwards from the most recent sale day
+        if days[0] == today:
+            pass
+        elif (today - days[0]).days == 1:
+            streak_at_risk = True  # streak alive but today still quiet
+        else:
+            return 0, False  # streak already broken
+        for d in days:
+            if d == cursor:
+                streak += 1
+                cursor -= timedelta(days=1)
+            else:
+                break
+    return streak, streak_at_risk
+
+
+def _heartbeat() -> dict:
+    """v2.1.0 — Platform pulse. Catches a platform-wide stall in hours:
+    time since the last completed sale (any tenant), 24h momentum vs the
+    prior 24h, how many tenants are actively selling, and the consecutive
+    sale-day streak. Computed in SQL so timezone handling matches the app."""
+    last = _rows("""
+        select sh.name as shop_name, s.total,
+               extract(epoch from (now() - s.created_at)) / 3600.0 as hours_ago
+        from public.sales s join public.shops sh on sh.id = s.shop_id
+        where s.status = 'completed'
+        order by s.created_at desc limit 1""")
+    win = (_rows("""
+        select
+          (select count(*) from public.sales where status = 'completed'
+             and created_at > now() - interval '24 hours') as n24,
+          (select coalesce(sum(total), 0) from public.sales
+             where status = 'completed'
+             and created_at > now() - interval '24 hours') as amt24,
+          (select count(distinct shop_id) from public.sales
+             where status = 'completed'
+             and created_at > now() - interval '24 hours') as shops24,
+          (select count(*) from public.sales where status = 'completed'
+             and created_at <= now() - interval '24 hours'
+             and created_at > now() - interval '48 hours') as prev24,
+          (select count(*) from public.shops where not is_suspended)
+            as shops_total""") or [{}])[0]
+
+    # Consecutive sale-day streak (EAT days), ending at today or yesterday.
+    days = [r["day"] for r in _rows("""
+        select distinct (created_at at time zone 'Africa/Addis_Ababa')::date as day
+        from public.sales where status = 'completed'
+        order by day desc limit 60""")]
+    today = _one("""
+        select (now() at time zone 'Africa/Addis_Ababa')::date""")
+    streak, streak_at_risk = _sale_streak(days, today)
+
+    n24 = int(win.get("n24") or 0)
+    prev24 = int(win.get("prev24") or 0)
+    shops24 = int(win.get("shops24") or 0)
+    shops_total = int(win.get("shops_total") or 0)
+
+    if not last:
+        hours = None
+        status = "empty"
+        pulse = "No sales yet"
+        ago_text = ""
+        headline = "Waiting for the platform's first sale"
+        detail = ("Once tenants start ringing up sales, this light stays "
+                  "green while the platform is active.")
+        card_sub = "no completed sale on record yet"
+    else:
+        hours = float(last["hours_ago"] or 0)
+        ago = (f"{int(hours * 60)}m" if hours < 1
+               else f"{hours / 24:.0f}d" if hours >= 48 else f"{hours:.0f}h")
+        ago_text = ago
+        where = f"ETB {_money(last['total'])} at {last['shop_name']}"
+        momentum = ""
+        if n24 or prev24:
+            if prev24 and n24 < prev24 / 2 and n24 < 5:
+                momentum = (f" · momentum fading: {n24} sales in 24h "
+                            f"vs {prev24} the prior 24h")
+            elif prev24 and n24 > prev24:
+                momentum = f" · accelerating: {n24} sales in 24h vs {prev24} prior"
+            else:
+                momentum = f" · {n24} sales in the last 24h"
+        if hours < 24:
+            status = "live"
+            pulse = "Live"
+            headline = f"Last sale {ago} ago — the register is ringing"
+            detail = f"{where}{momentum} · {shops24} of {shops_total} tenants selling in 24h · {streak}-day streak"
+            card_sub = f"last sale {ago} ago · {streak}-day streak"
+        elif hours < 48:
+            status = "cooling"
+            pulse = "Cooling"
+            headline = f"No sale in {ago} — the platform is cooling"
+            detail = (f"Last: {where}. {n24} sales in 24h vs {prev24} prior · "
+                      f"{streak}-day streak"
+                      + (" — today still quiet, at risk" if streak_at_risk else "")
+                      + ". Nudge your busiest tenants today.")
+            card_sub = f"silent {ago} · streak {streak}d at risk"
+        else:
+            status = "silent"
+            pulse = "Silent"
+            headline = f"Platform silent for {ago} — act now"
+            detail = (f"Last sale ever: {where}. Nobody has sold anything in "
+                      f"{ago}. Call your top tenants before silence becomes churn.")
+            card_sub = f"silent {ago} · call top tenants"
+
+    return {"status": status, "pulse": pulse, "headline": headline,
+            "detail": detail, "card_sub": card_sub, "hours": hours,
+            "ago_text": ago_text,
+            "n24": n24, "prev24": prev24, "amt24": _money(win.get("amt24") or 0),
+            "shops24": shops24, "shops_total": shops_total,
+            "streak": streak, "streak_at_risk": streak_at_risk}
+
+
 def money_radar() -> dict:
     """The owner's revenue-intelligence snapshot over every live tenant."""
     rows = _rows(_RADAR_SQL)
@@ -417,4 +542,5 @@ def money_radar() -> dict:
     return {"tenants": tenants, "upsells": upsells[:8], "churn": churn[:8],
             "winback": winback[:8], "pipeline_mrr": pipeline_mrr,
             "pipeline_arr": pipeline_mrr * 12, "bands": bands,
-            "avg_health": avg_health, "median30": median30}
+            "avg_health": avg_health, "median30": median30,
+            "heartbeat": _heartbeat()}
