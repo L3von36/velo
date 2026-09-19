@@ -244,6 +244,15 @@ html.dark .vp-pill-refunded { color: #F87171; }
 html.dark .vp-pill-verified { color: #4ADE80; }
 .vp-pill-pending_verification { background: rgba(180, 83, 9, .12); color: #B45309; }
 html.dark .vp-pill-pending_verification { color: #FBBF24; }
+/* v2.3.0 — test tenant (excluded from health stats) */
+.vp-pill-test { background: color-mix(in srgb, var(--vp-muted, #98a2b3) 14%, transparent); color: var(--vp-muted, #98a2b3); }
+html.dark .vp-pill-test { color: var(--color-base-400, #98a2b3); }
+
+/* v2.3.0 — diagnostics fieldset on the shop form (muted, not alarming) */
+.vp-test-zone {
+  border: 1px dashed color-mix(in srgb, var(--vp-muted, #98a2b3) 45%, transparent) !important;
+  background: color-mix(in srgb, var(--vp-muted, #98a2b3) 5%, transparent) !important;
+}
 
 /* ---------- 14-day bar chart ---------- */
 .vp-chart {

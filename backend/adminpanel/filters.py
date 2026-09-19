@@ -96,3 +96,20 @@ class SuspendedFilter(DropdownFilter):
         if self.value() == "active":
             return queryset.filter(is_suspended=False)
         return queryset
+
+
+class TestFilter(DropdownFilter):
+    """Tenant type dropdown: all / real / test tenants (v2.3.0)."""
+
+    title = "Tenant type"
+    parameter_name = "is_test"
+
+    def lookups(self, request, model_admin):
+        return [("real", "Real tenants"), ("test", "Test tenants")]
+
+    def queryset(self, request, queryset):
+        if self.value() == "test":
+            return queryset.filter(is_test=True)
+        if self.value() == "real":
+            return queryset.filter(is_test=False)
+        return queryset

@@ -109,19 +109,22 @@ def _revenue_series(days: int) -> list[dict]:
 def _growth() -> dict:
     """MRR / churn / activation — the owner's commercial lens."""
     by_plan = _rows("""
-        select plan, count(*) as shops from public.shops group by plan""")
+        select plan, count(*) as shops from public.shops
+        where not is_test group by plan""")
     shops_total = sum(r["shops"] for r in by_plan)
 
     mrr = sum(PLAN_PRICES_ETB.get(r["plan"], 0) * r["shops"] for r in by_plan)
     paying = sum(r["shops"] for r in by_plan if PLAN_PRICES_ETB.get(r["plan"], 0) > 0)
 
     # Churn: tenants older than 30d with zero sales in the last 30d.
+    # Test tenants are excluded — demo shops are not churn evidence.
     mature = _one("""
         select count(*) from public.shops
-        where created_at < now() - interval '30 days'""") or 0
+        where created_at < now() - interval '30 days' and not is_test""") or 0
     churned = _one("""
         select count(*) from public.shops s
         where s.created_at < now() - interval '30 days'
+          and not s.is_test
           and not exists (
             select 1 from public.sales x
             where x.shop_id = s.id
@@ -277,7 +280,8 @@ with m as (
            extract(day from now() - sh.created_at)::int as age_days
     from public.shops sh
 )
-select m.*, sh.name, sh.plan, sh.business_type, sh.is_suspended, sh.created_at,
+select m.*, sh.name, sh.plan, sh.business_type, sh.is_suspended, sh.is_test,
+       sh.created_at,
        case when m.last_sale is null then null
             else extract(epoch from (now() - m.last_sale)) / 3600.0
        end as hours_silent
@@ -424,8 +428,8 @@ def _heartbeat() -> dict:
           (select count(*) from public.sales where status = 'completed'
              and created_at <= now() - interval '24 hours'
              and created_at > now() - interval '48 hours') as prev24,
-          (select count(*) from public.shops where not is_suspended)
-            as shops_total""") or [{}])[0]
+          (select count(*) from public.shops
+            where not is_suspended and not is_test) as shops_total""") or [{}])[0]
 
     # Consecutive sale-day streak (EAT days), ending at today or yesterday.
     days = [r["day"] for r in _rows("""
@@ -531,6 +535,7 @@ def money_radar() -> dict:
             "id": r["id"], "name": r["name"], "plan": r["plan"],
             "business_type": r["business_type"],
             "is_suspended": r["is_suspended"],
+            "is_test": r.get("is_test", False),
             "items_cnt": r["items_cnt"], "users_cnt": r["users_cnt"],
             "cust_cnt": r["cust_cnt"], "age_days": r["age_days"],
             "last_sale": r["last_sale"],
@@ -544,30 +549,34 @@ def money_radar() -> dict:
         c["signals"] = sorted(c["signals"], key=lambda s: kinds.get(s["kind"], 9))
         tenants.append(c)
 
+    # v2.3.0 — test tenants stay visible on the board but never count as
+    # pipeline, churn or health signal: demo shops are not revenue truth.
+    real = [t for t in tenants if not t["is_test"]]
     upsells = sorted(
-        (t for t in tenants if any(s["kind"] == "upsell" for s in t["signals"])),
+        (t for t in real if any(s["kind"] == "upsell" for s in t["signals"])),
         key=lambda t: -max((s["upside"] for s in t["signals"]
                             if s["kind"] == "upsell"), default=0))
     churn = sorted(
-        (t for t in tenants if any(s["kind"] == "churn" for s in t["signals"])),
+        (t for t in real if any(s["kind"] == "churn" for s in t["signals"])),
         key=lambda t: -min((s["days_silent"] for s in t["signals"]
                             if s["kind"] == "churn"), default=0))
     winback = sorted(
-        (t for t in tenants if any(s["kind"] == "winback" for s in t["signals"])),
+        (t for t in real if any(s["kind"] == "winback" for s in t["signals"])),
         key=lambda t: -t["rev_life"])
 
     pipeline_mrr = sum(s["upside"] for t in upsells for s in t["signals"]
                        if s["kind"] == "upsell")
 
-    bands = {b: sum(1 for t in tenants
+    bands = {b: sum(1 for t in real
                     if t["band"] == b and not t["is_suspended"])
              for b in ("healthy", "watch", "at_risk", "critical")}
 
-    live = [t for t in tenants if not t["is_suspended"]]
+    live = [t for t in real if not t["is_suspended"]]
     avg_health = (sum(t["health"] for t in live) // len(live)) if live else 0
 
     return {"tenants": tenants, "upsells": upsells[:8], "churn": churn[:8],
             "winback": winback[:8], "pipeline_mrr": pipeline_mrr,
             "pipeline_arr": pipeline_mrr * 12, "bands": bands,
             "avg_health": avg_health, "median30": median30,
+            "active_count": len(real), "test_count": len(tenants) - len(real),
             "heartbeat": _heartbeat()}

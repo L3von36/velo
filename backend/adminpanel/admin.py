@@ -42,6 +42,7 @@ from .filters import (
     StaffRoleFilter,
     StockReasonFilter,
     SuspendedFilter,
+    TestFilter,
 )
 
 
@@ -273,12 +274,14 @@ def _plan_action(plan_name):
 @admin.register(models.Shop, site=velo_admin_site)
 class ShopAdmin(FullPowerAdmin):
     list_display = ("id", "name", "business_type", "plan", "phone",
-                    "location_badge", "suspension_badge", "created_at")
+                    "location_badge", "suspension_badge", "test_badge",
+                    "created_at")
     list_filter = (
         ("business_type", RelatedDropdownFilter),
         PlanFilter,
         LanguageFilter,
         SuspendedFilter,
+        TestFilter,
     )
     list_filter_submit = True
     list_fullwidth = True
@@ -288,6 +291,7 @@ class ShopAdmin(FullPowerAdmin):
     ordering = ("-created_at",)
     readonly_fields = ("id", "created_at", "suspended_at")
     actions = ("suspend_selected", "restore_selected",
+               "mark_test", "unmark_test",
                "set_plan_free", "set_plan_starter",
                "set_plan_pro", "set_plan_business")
     fieldsets = (
@@ -299,6 +303,14 @@ class ShopAdmin(FullPowerAdmin):
             "accept_telebirr", "accept_cbe", "accept_credit")}),
         ("Receipt", {"fields": ("receipt_footer",)}),
         ("System", {"fields": ("id", "created_at")}),
+        ("Diagnostics — test tenant", {
+            "classes": ("vp-test-zone",),
+            "description": "Test/demo tenants are excluded from health bands, "
+                           "avg health, the upsell pipeline and heartbeat "
+                           "counts. Fully reversible — unflag when the shop "
+                           "goes live.",
+            "fields": ("is_test",),
+        }),
         ("Danger zone — suspend tenant", {
             "classes": ("vp-danger-zone",),
             "description": "Suspension flags the tenant for the platform. "
@@ -318,6 +330,13 @@ class ShopAdmin(FullPowerAdmin):
                 '<span class="vp-pill vp-pill-suspended">suspended</span>')
         return format_html(
             '<span class="vp-pill vp-pill-active">active</span>')
+
+    @admin.display(boolean=None, description="Test")
+    def test_badge(self, obj):
+        if obj.is_test:
+            return format_html(
+                '<span class="vp-pill vp-pill-test">test</span>')
+        return ""
 
     @admin.action(description="Suspend selected tenants (reversible)")
     def suspend_selected(self, request, queryset):
@@ -344,6 +363,24 @@ class ShopAdmin(FullPowerAdmin):
                         "where id = %s", [shop.id])
                 count += 1
         self.message_user(request, f"{count} tenant(s) restored.")
+
+    # v2.3.0 — test-tenant flag: keeps demo/signup-test shops out of the
+    # radar's health bands, upsell pipeline and heartbeat denominators.
+    @admin.action(description="Mark selected shops as TEST tenants")
+    def mark_test(self, request, queryset):
+        count = queryset.update(is_test=True)
+        self.message_user(
+            request,
+            f"{count} shop(s) marked as test tenants — excluded from "
+            "radar health stats.", level=messages.SUCCESS)
+
+    @admin.action(description="Unmark test tenants (back to real)")
+    def unmark_test(self, request, queryset):
+        count = queryset.update(is_test=False)
+        self.message_user(
+            request,
+            f"{count} shop(s) unmarked — back in radar health stats.",
+            level=messages.SUCCESS)
 
     # Bulk plan management — the billing lever, one click away.
     set_plan_free = _plan_action("free")

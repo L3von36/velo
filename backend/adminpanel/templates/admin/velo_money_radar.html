@@ -11,7 +11,8 @@
       <p>Revenue intelligence computed live from tenant sales, catalog and billing · median 30-day revenue ETB {{ radar.median30|floatformat:0 }}</p>
     </div>
     <div class="vp-hero-badges">
-      <span class="vp-chip vp-chip-green"><span class="material-symbols-outlined">radar</span> {{ radar.tenants|length }} tenants analysed</span>
+      <span class="vp-chip vp-chip-green"><span class="material-symbols-outlined">radar</span> {{ radar.active_count }} active tenants</span>
+      {% if radar.test_count %}<span class="vp-chip"><span class="material-symbols-outlined">science</span> {{ radar.test_count }} test excluded</span>{% endif %}
       <span class="vp-chip"><span class="material-symbols-outlined">speed</span> avg health {{ radar.avg_health }}/100</span>
     </div>
   </div>
@@ -173,7 +174,8 @@
           <td class="vp-num">{{ t.items_cnt }}</td>
           <td class="vp-num">{{ t.users_cnt }}</td>
           <td>
-            {% if t.is_suspended %}<span class="vp-pill vp-pill-suspended">suspended</span>
+            {% if t.is_test %}<span class="vp-pill vp-pill-test">test</span>
+            {% elif t.is_suspended %}<span class="vp-pill vp-pill-suspended">suspended</span>
             {% elif t.band == "healthy" %}<span class="vp-pill vp-pill-active">healthy</span>
             {% elif t.band == "watch" %}<span class="vp-pill vp-pill-pending_verification">watch</span>
             {% elif t.band == "at_risk" %}<span class="vp-pill vp-pill-refunded">at risk</span>

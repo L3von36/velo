@@ -54,6 +54,7 @@ class Shop(models.Model):
     is_suspended = models.BooleanField(default=False)
     suspended_at = models.DateTimeField(null=True, blank=True)
     suspended_note = models.TextField(blank=True, default="")
+    is_test = models.BooleanField(default=False)
 
     class Meta:
         managed = False
