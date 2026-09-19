@@ -17,7 +17,7 @@ import '../expenses/expenses_screen.dart';
 import '../settings/settings_screen.dart';
 
 /// Adaptive navigation shell (PRD UI/UX):
-///  - < 600dp: NavigationBar bottom, 5 top-level destinations
+///  - < 600dp: NavigationBar bottom, 4 direct destinations + "More" sheet
 ///  - 600–1024dp: NavigationRail
 ///  - > 1024dp: persistent sidebar rail with extended labels
 class HomeShell extends ConsumerStatefulWidget {
@@ -47,6 +47,84 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         ref.read(onlineProvider.notifier).setOnline(!offline);
       });
     } catch (_) {}
+  }
+
+  /// Instagram-style "More" sheet: the destinations that don't fit in the
+  /// bottom bar (Reports, Expenses, Staff, Settings) live here. Each entry
+  /// carries its absolute destination index, resolved at open time so late
+  /// rebuilds can never desync the lookup.
+  void _openMoreSheet(List<MapEntry<int, _Dest>> overflow) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 14, top: 2, bottom: 10),
+                child: Text(t(context).more,
+                    style: theme.textTheme.titleLarge),
+              ),
+              for (final entry in overflow)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Material(
+                    color: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () {
+                        Navigator.of(sheetCtx).pop();
+                        setState(() => _index = entry.key);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: entry.key == _index
+                                    ? scheme.primaryContainer
+                                    : scheme.surfaceContainerHigh,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(entry.value.icon,
+                                  size: 21,
+                                  color: entry.key == _index
+                                      ? scheme.onPrimaryContainer
+                                      : scheme.onSurfaceVariant),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Text(entry.value.label,
+                                  style: theme.textTheme.titleMedium),
+                            ),
+                            if (entry.key == _index)
+                              Icon(Icons.check_circle_rounded,
+                                  size: 18, color: scheme.primary)
+                            else
+                              Icon(Icons.chevron_right_rounded,
+                                  size: 20, color: scheme.onSurfaceVariant),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -112,6 +190,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         : const SizedBox.shrink();
 
     if (width < 600) {
+      // Mobile bottom nav: 4 direct destinations + "More" overflow menu
+      // (Instagram pattern) so every screen stays reachable on small phones.
+      const directCount = 4;
+      final direct = destinations.take(directCount).toList();
+      final overflow = <MapEntry<int, _Dest>>[
+        for (var i = directCount; i < destinations.length; i++)
+          MapEntry(i, destinations[i]),
+      ];
+      final hasMore = overflow.isNotEmpty;
       return Scaffold(
         body: Column(
           children: [
@@ -120,16 +207,27 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           ],
         ),
         bottomNavigationBar: NavigationBar(
-          selectedIndex: _index,
-          onDestinationSelected: (i) => setState(() => _index = i),
-          destinations: destinations
-              .take(5)
-              .map((d) => NavigationDestination(
-                    icon: Icon(d.icon),
-                    selectedIcon: Icon(d.icon, fill: 1),
-                    label: d.label,
-                  ))
-              .toList(),
+          selectedIndex: _index < directCount ? _index : directCount,
+          onDestinationSelected: (i) {
+            if (i < directCount) {
+              setState(() => _index = i);
+            } else if (hasMore) {
+              _openMoreSheet(overflow);
+            }
+          },
+          destinations: [
+            ...direct.map((d) => NavigationDestination(
+                  icon: Icon(d.icon),
+                  selectedIcon: Icon(d.icon, fill: 1),
+                  label: d.label,
+                )),
+            if (hasMore)
+              NavigationDestination(
+                icon: const Icon(Icons.apps_rounded),
+                selectedIcon: const Icon(Icons.apps_rounded, fill: 1),
+                label: t(context).more,
+              ),
+          ],
         ),
       );
     }

@@ -95,87 +95,88 @@ class AppTheme {
       final onVar = b == Brightness.dark
           ? const Color(0xFFBFC9BF)
           : const Color(0xFF414942);
+      // Instagram-compact scale: body ~13.5, titles ~17, labels tight.
       return TextTheme(
         displaySmall: TextStyle(
-            fontSize: 34,
+            fontSize: 29,
             fontWeight: FontWeight.w800,
-            letterSpacing: -1.0,
+            letterSpacing: -0.9,
             color: onSurface,
             fontFamily: fontFamily,
             fontFamilyFallback: fontFamilyFallback),
         headlineMedium: TextStyle(
-            fontSize: 27,
+            fontSize: 23,
             fontWeight: FontWeight.w800,
-            letterSpacing: -0.6,
+            letterSpacing: -0.5,
             color: onSurface,
             fontFamily: fontFamily,
             fontFamilyFallback: fontFamilyFallback),
         headlineSmall: TextStyle(
-            fontSize: 23,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.4,
-            color: onSurface,
-            fontFamily: fontFamily,
-            fontFamilyFallback: fontFamilyFallback),
-        titleLarge: TextStyle(
-            fontSize: 19,
+            fontSize: 19.5,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.3,
             color: onSurface,
             fontFamily: fontFamily,
             fontFamilyFallback: fontFamilyFallback),
+        titleLarge: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.25,
+            color: onSurface,
+            fontFamily: fontFamily,
+            fontFamilyFallback: fontFamilyFallback),
         titleMedium: TextStyle(
-            fontSize: 15.5,
+            fontSize: 14.5,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.1,
             color: onSurface,
             fontFamily: fontFamily,
             fontFamilyFallback: fontFamilyFallback),
         titleSmall: TextStyle(
-            fontSize: 13.5,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             color: onSurface,
             fontFamily: fontFamily,
             fontFamilyFallback: fontFamilyFallback),
         bodyLarge: TextStyle(
-            fontSize: 15.5,
+            fontSize: 14.5,
             fontWeight: FontWeight.w400,
             letterSpacing: 0.1,
             color: onSurface,
             fontFamily: fontFamily,
             fontFamilyFallback: fontFamilyFallback),
         bodyMedium: TextStyle(
-            fontSize: 14,
+            fontSize: 13.5,
             fontWeight: FontWeight.w400,
-            letterSpacing: 0.15,
+            letterSpacing: 0.1,
             color: onSurface,
             fontFamily: fontFamily,
             fontFamilyFallback: fontFamilyFallback),
         bodySmall: TextStyle(
-            fontSize: 12.5,
+            fontSize: 12,
             fontWeight: FontWeight.w400,
-            letterSpacing: 0.2,
+            letterSpacing: 0.15,
             color: onVar,
             fontFamily: fontFamily,
             fontFamilyFallback: fontFamilyFallback),
         labelLarge: TextStyle(
-            fontSize: 14,
+            fontSize: 13.5,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.1,
             color: onSurface,
             fontFamily: fontFamily,
             fontFamilyFallback: fontFamilyFallback),
         labelMedium: TextStyle(
-            fontSize: 12,
+            fontSize: 11.5,
             fontWeight: FontWeight.w600,
-            letterSpacing: 0.3,
+            letterSpacing: 0.25,
             color: onVar,
             fontFamily: fontFamily,
             fontFamilyFallback: fontFamilyFallback),
         labelSmall: TextStyle(
-            fontSize: 11,
+            fontSize: 10.5,
             fontWeight: FontWeight.w600,
-            letterSpacing: 0.4,
+            letterSpacing: 0.35,
             color: onVar,
             fontFamily: fontFamily,
             fontFamilyFallback: fontFamilyFallback),
@@ -190,7 +191,7 @@ class AppTheme {
       fontFamilyFallback: fontFamilyFallback,
       textTheme: textTheme(brightness),
       splashFactory: InkSparkle.splashFactory,
-      visualDensity: VisualDensity.comfortable,
+      visualDensity: VisualDensity.standard,
       pageTransitionsTheme: const PageTransitionsTheme(builders: {
         TargetPlatform.android: ZoomPageTransitionsBuilder(),
         TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
@@ -209,7 +210,7 @@ class AppTheme {
         backgroundColor: scheme.surface,
         foregroundColor: scheme.onSurface,
         titleTextStyle: base.textTheme.titleLarge,
-        toolbarHeight: 64,
+        toolbarHeight: 56,
         shape: Border(
           bottom: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.45)),
         ),
@@ -232,8 +233,8 @@ class AppTheme {
       // ── Buttons ─────────────────────────────────────────────────────────
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size(0, 50),
-          padding: const EdgeInsets.symmetric(horizontal: 22),
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 18),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(rSm + 2)),
           textStyle: base.textTheme.labelLarge?.copyWith(
@@ -242,8 +243,8 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 50),
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(rSm + 2)),
           side: BorderSide(color: scheme.outlineVariant),
@@ -254,7 +255,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          minimumSize: const Size(0, 44),
+          minimumSize: const Size(0, 40),
           textStyle: base.textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w600, fontFamilyFallback: fontFamilyFallback),
         ),
@@ -296,7 +297,7 @@ class AppTheme {
           borderSide: BorderSide(color: scheme.error, width: 1.8),
         ),
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       ),
 
       // ── Chips ───────────────────────────────────────────────────────────
@@ -318,7 +319,7 @@ class AppTheme {
 
       // ── Navigation ──────────────────────────────────────────────────────
       navigationBarTheme: NavigationBarThemeData(
-        height: 72,
+        height: 64,
         elevation: 0,
         backgroundColor: isDark
             ? scheme.surfaceContainerLow
@@ -453,7 +454,7 @@ class AppTheme {
       ),
       listTileTheme: ListTileThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(rSm)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
         titleTextStyle: base.textTheme.bodyLarge
             ?.copyWith(fontWeight: FontWeight.w600, fontFamilyFallback: fontFamilyFallback),
         subtitleTextStyle: base.textTheme.bodySmall?.copyWith(fontFamilyFallback: fontFamilyFallback),

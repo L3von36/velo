@@ -139,6 +139,9 @@ class AppLocalizationsAm extends AppLocalizations {
   String get settings => 'ቅንብሮች';
 
   @override
+  String get more => 'ተጨማሪ';
+
+  @override
   String get appointments => 'ቀጠሮዎች';
 
   @override
