@@ -388,6 +388,7 @@ def _heartbeat() -> dict:
         from public.sales s join public.shops sh on sh.id = s.shop_id
         where s.status = 'completed'
         order by s.created_at desc limit 1""")
+    last = last[0] if last else None
     win = (_rows("""
         select
           (select count(*) from public.sales where status = 'completed'
