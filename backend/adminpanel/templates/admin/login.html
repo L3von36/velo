@@ -2,21 +2,28 @@
 {% load i18n static unfold %}
 
 {% comment %}
-Velo custom login (v2.5.0 — UX audit pass).
-Replaces Unfold's cropped background-image treatment (the logo was being
-scaled with `background-size: cover`, chopping off the right side of the
-"V") with a purpose-built split screen: form on the left, contained brand
-panel on the right. Nothing is ever cropped again.
+Velo custom login (v2.7.0 — motion + input-system pass).
+v2.5.0 replaced Unfold's cropped background-image treatment with a purpose-
+built split screen: form on the left, contained brand panel on the right.
+Nothing is ever cropped.
 
-v2.5.0: dropped the dead "Return to site" link (SITE_URL=/admin/ just
-reloads this page when logged out) — the header is now the theme switch
-only; compact logo mark on the form column below 1280px; show-password
-toggle; double-submit guard. Styling lives in velo_admin.css (.vp-login-*).
+v2.7.0: Lottie motion everywhere (self-hosted lottie-web, no CDN):
+  - brand panel gets a radar-orbit hero (tenants orbiting the platform);
+  - a compact copy of it lives above the eyebrow below 1280px (where the
+    brand panel is hidden) so mobile/tablet get the motion too;
+  - submit button swaps to a Lottie 3-dot pulse + "Signing in…" while the
+    POST round-trip is in flight (lazy-loaded on first submit);
+  - error responses shake the form column once;
+  - Caps Lock warning on the password field.
+Inputs: 40px fields with inline person/lock icons (see velo_admin.css
+.vp-login section); the global admin input system was upgraded in the same
+pass so every form in the console benefits.
 {% endcomment %}
 
 {% block extrastyle %}
     {{ block.super }}
     {{ form.media }}
+    <script src="/static/adminpanel/lottie.min.js"></script>
 {% endblock %}
 
 {% block title %}
@@ -34,7 +41,7 @@ toggle; double-submit guard. Styling lives in velo_admin.css (.vp-login-*).
                 {% include "unfold/helpers/theme_switch_dropdown.html" %}
             </div>
 
-            <div class="w-full sm:w-96">
+            <div class="w-full sm:w-96 {% if form.errors or form.non_field_errors %}vp-login-shake{% endif %}">
 
                 {# ---------- heading ---------- #}
                 <div class="vp-login-head">
@@ -42,6 +49,11 @@ toggle; double-submit guard. Styling lives in velo_admin.css (.vp-login-*).
                     <div class="vp-login-mark">
                         <img src="/static/adminpanel/velo.svg" alt="Velo" width="30" height="30" draggable="false">
                     </div>
+
+                    {# compact orbit medallion — mirrors the brand panel hero below 1280px; light-surface palette so it reads on the form column #}
+                    <div class="vp-login-lottie vp-login-lottie-m vp-lottie"
+                         data-src="/static/adminpanel/lottie-orbit-light.json" aria-hidden="true"></div>
+
                     <span class="vp-login-eyebrow">Velo Owner Console</span>
                     <h1 class="vp-login-title">Welcome back</h1>
                     <p class="vp-login-sub">Sign in to manage tenants, revenue and platform health.</p>
@@ -65,10 +77,16 @@ toggle; double-submit guard. Styling lives in velo_admin.css (.vp-login-*).
 
                 <form action="{{ app_path }}" method="post" id="login-form" class="vp-login-form">
                     {% csrf_token %}
-                    {% include "unfold/helpers/field.html" with field=form.username %}
 
-                    {# relative wrapper: anchors the show-password button to the input row #}
+                    {# relative wrapper: anchors the inline person icon to the input row #}
+                    <div class="vp-icon-field">
+                        <span class="material-symbols-outlined vp-inp-icon" aria-hidden="true">person</span>
+                        {% include "unfold/helpers/field.html" with field=form.username %}
+                    </div>
+
+                    {# relative wrapper: anchors the lock icon + show-password button to the input row #}
                     <div class="vp-pw-wrap">
+                        <span class="material-symbols-outlined vp-inp-icon" aria-hidden="true">lock</span>
                         {% include "unfold/helpers/field.html" with field=form.password %}
                         <button type="button" class="vp-pw-toggle" data-pw-target="id_password"
                                 aria-label="Show password" aria-pressed="false" title="Show password">
@@ -76,9 +94,21 @@ toggle; double-submit guard. Styling lives in velo_admin.css (.vp-login-*).
                         </button>
                     </div>
 
+                    <p class="vp-caps-hint" id="vp-caps-hint" hidden>
+                        <span class="material-symbols-outlined" aria-hidden="true">keyboard_capslock</span>
+                        Caps Lock is on
+                    </p>
+
                     <div class="flex flex-col gap-3 mt-6">
                         {% component "unfold/components/button.html" with submit=1 variant="primary" class="submit-row w-full" %}
-                            {% translate 'Log in' %} <span class="material-symbols-outlined relative right-0 transition-all group-hover:-right-1 text-sm">arrow_forward</span>
+                            <span class="vp-btn-face">
+                                {% translate 'Log in' %}
+                                <span class="material-symbols-outlined relative right-0 transition-all group-hover:-right-1 text-sm">arrow_forward</span>
+                            </span>
+                            <span class="vp-btn-busy" aria-hidden="true">
+                                <span class="vp-lottie-slot vp-lottie" data-src="/static/adminpanel/lottie-loader.json"></span>
+                                <span>Signing in…</span>
+                            </span>
                         {% endcomponent %}
                     </div>
                 </form>
@@ -101,6 +131,11 @@ toggle; double-submit guard. Styling lives in velo_admin.css (.vp-login-*).
                 <p>POS, inventory, customers and payments — in one place.</p>
             </div>
 
+            {# Lottie hero — tenants orbiting the platform (radar ping rings) #}
+            <div class="vp-login-lottie vp-login-lottie-brand vp-lottie"
+                 data-src="/static/adminpanel/lottie-orbit.json"
+                 role="img" aria-label="Animated graphic: shop tenants orbiting the Velo platform"></div>
+
             <ul class="vp-login-points">
                 <li>
                     <span class="material-symbols-outlined">storefront</span>
@@ -117,7 +152,7 @@ toggle; double-submit guard. Styling lives in velo_admin.css (.vp-login-*).
             </ul>
 
             <div class="vp-login-meta">
-                <span class="vp-chip">v2.6.0</span>
+                <span class="vp-chip">v2.7.0</span>
                 <span>Addis Ababa time · data served live</span>
             </div>
         </aside>
@@ -126,15 +161,19 @@ toggle; double-submit guard. Styling lives in velo_admin.css (.vp-login-*).
             (function () {
                 "use strict";
 
+                var reduceMotion = window.matchMedia
+                    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+                var lottieReady = typeof window.lottie !== "undefined";
+
                 /* show / hide password — vanilla, no frameworks */
                 var toggle = document.querySelector(".vp-pw-toggle");
                 if (toggle) {
-                    var pw = document.getElementById(toggle.getAttribute("data-pw-target"));
+                    var pwField = document.getElementById(toggle.getAttribute("data-pw-target"));
                     var icon = toggle.querySelector(".material-symbols-outlined");
-                    if (pw && icon) {
+                    if (pwField && icon) {
                         toggle.addEventListener("click", function () {
-                            var show = pw.type === "password";
-                            pw.type = show ? "text" : "password";
+                            var show = pwField.type === "password";
+                            pwField.type = show ? "text" : "password";
                             icon.textContent = show ? "visibility_off" : "visibility";
                             toggle.setAttribute("aria-pressed", show ? "true" : "false");
                             toggle.setAttribute("aria-label", show ? "Hide password" : "Show password");
@@ -143,20 +182,81 @@ toggle; double-submit guard. Styling lives in velo_admin.css (.vp-login-*).
                     }
                 }
 
-                /* double-submit guard: disable the button once the form is
-                   actually submitting (HTML5 validation failures never fire
-                   submit, so the button stays usable); pageshow re-enables
-                   it when the browser restores the page from bfcache. */
+                /* Caps Lock warning on the password field */
+                var capsHint = document.getElementById("vp-caps-hint");
+                var pwInput = document.getElementById("id_password");
+                function capsUpdate(e) {
+                    if (!capsHint) return;
+                    var on = e && typeof e.getModifierState === "function"
+                        && e.getModifierState("CapsLock");
+                    capsHint.hidden = !on;
+                }
+                if (capsHint && pwInput) {
+                    pwInput.addEventListener("keydown", capsUpdate);
+                    pwInput.addEventListener("keyup", capsUpdate);
+                    pwInput.addEventListener("blur", function () { capsHint.hidden = true; });
+                }
+
+                /* Lottie: init every .vp-lottie[data-src]; IntersectionObserver
+                   plays/pauses so the hidden copy below 1280px never burns CPU.
+                   Reduced motion: load a single static frame instead. */
+                function startLottie(el) {
+                    if (!lottieReady || el.getAttribute("data-lottie-init")) return;
+                    el.setAttribute("data-lottie-init", "1");
+                    var anim = window.lottie.loadAnimation({
+                        container: el,
+                        renderer: "svg",
+                        loop: true,
+                        autoplay: !reduceMotion,
+                        path: el.getAttribute("data-src")
+                    });
+                    if (reduceMotion) {
+                        anim.addEventListener("DOMLoaded", function () {
+                            anim.goToAndStop(0, true);
+                        });
+                    }
+                    el._vpAnim = anim;
+                }
+                var slots = Array.prototype.slice.call(
+                    document.querySelectorAll(".vp-lottie[data-src]"));
+                if (slots.length && lottieReady) {
+                    if ("IntersectionObserver" in window && !reduceMotion) {
+                        var io = new IntersectionObserver(function (entries) {
+                            entries.forEach(function (en) {
+                                var a = en.target._vpAnim;
+                                if (!a) return;
+                                if (en.isIntersecting) { a.play(); } else { a.pause(); }
+                            });
+                        }, { threshold: 0.05 });
+                        slots.forEach(function (el) { startLottie(el); io.observe(el); });
+                    } else {
+                        slots.forEach(startLottie);
+                    }
+                }
+
+                /* double-submit guard + loading state: the button swaps to a
+                   Lottie 3-dot pulse ("Signing in…") for the POST round-trip.
+                   HTML5 validation failures never fire submit, so the button
+                   stays usable; pageshow restores it from bfcache. */
                 var form = document.getElementById("login-form");
                 if (form) {
                     form.addEventListener("submit", function () {
                         var b = form.querySelector('button[type="submit"]');
-                        if (b) { b.disabled = true; }
+                        if (!b) return;
+                        b.classList.add("is-loading");
+                        b.setAttribute("aria-busy", "true");
+                        b.disabled = true;
+                        var slot = b.querySelector(".vp-lottie-slot");
+                        if (slot && !reduceMotion) startLottie(slot);
                     });
                     window.addEventListener("pageshow", function (e) {
                         if (e.persisted) {
                             var b = form.querySelector('button[type="submit"]');
-                            if (b) { b.disabled = false; }
+                            if (b) {
+                                b.classList.remove("is-loading");
+                                b.removeAttribute("aria-busy");
+                                b.disabled = false;
+                            }
                         }
                     });
                 }

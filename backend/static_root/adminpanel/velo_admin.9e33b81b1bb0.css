@@ -446,7 +446,7 @@ html.dark .vp-danger .vp-panel-head h2 .material-symbols-outlined { color: #F871
   padding: 0 10px;
   border: 1px solid var(--vp-border);
   border-radius: 7px;
-  background: var(--vp-card-bg);
+  background-color: var(--vp-card-bg);  /* not shorthand: keep select chevron */
   color: var(--color-font-important-light, #101828);
   font-size: 12.5px;
   min-width: 100%;
@@ -455,7 +455,7 @@ html.dark .vp-danger .vp-panel-head h2 .material-symbols-outlined { color: #F871
 html.dark .vp-suspend-row select,
 html.dark .vp-suspend-row input[type="text"] {
   color: var(--color-font-important-dark, #f2f4f7);
-  background: color-mix(in srgb, var(--color-base-500) 10%, transparent);
+  background-color: color-mix(in srgb, var(--color-base-500) 10%, transparent);
 }
 .vp-suspend-row select:focus,
 .vp-suspend-row input[type="text"]:focus {
@@ -700,7 +700,14 @@ fieldset.module h2,
   letter-spacing: -0.005em;
 }
 
-/* -- form controls: h-8, px-3, 13px, subtle border, 7px radius ----------- */
+/* -- form controls: h-8, px-3, 13px, subtle border, 8px radius -----------
+   v2.7.0 input system: crisp white fields with a hairline inner shadow,
+   hover border lift, green focus ring, red error state, custom select
+   chevron, autofill + placeholder + disabled polish. These state rules are
+   global so EVERY form in the console benefits (changelist search, filters,
+   auth forms, notes, suspend, audit). Component blocks below that set their
+   own background use background-color (not the shorthand) so the select
+   chevron survives. ------------------------------------------------------ */
 input[type="text"], input[type="number"], input[type="email"],
 input[type="password"], input[type="url"], input[type="tel"],
 input[type="date"], input[type="time"], input[type="datetime-local"],
@@ -708,11 +715,130 @@ input[type="search"], input[type="month"], input[type="week"], select, textarea 
   font-size: 0.8125rem;
   min-height: 2rem;              /* h-8 */
   padding: 0.375rem 0.625rem;    /* 6px 10px */
-  border-radius: 7px;
+  border-radius: 8px;
   border: 1px solid var(--color-base-300, #d0d5dd);
+  background-color: #ffffff;
+  color: var(--color-font-default-light, #364153);
+  box-shadow: inset 0 1px 2px rgba(16, 24, 40, .04);
+  transition: border-color .15s ease, box-shadow .15s ease,
+              background-color .15s ease;
 }
 
 textarea { min-height: 0; }      /* rows-driven, no forced height */
+
+/* hover: invite the click */
+input[type="text"]:hover, input[type="number"]:hover, input[type="email"]:hover,
+input[type="password"]:hover, input[type="url"]:hover, input[type="tel"]:hover,
+input[type="date"]:hover, input[type="time"]:hover,
+input[type="datetime-local"]:hover, input[type="search"]:hover,
+input[type="month"]:hover, input[type="week"]:hover, select:hover, textarea:hover {
+  border-color: var(--color-base-400, #98a2b3);
+}
+
+/* focus: brand ring (replaces the default outline everywhere) */
+input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus,
+input[type="password"]:focus, input[type="url"]:focus, input[type="tel"]:focus,
+input[type="date"]:focus, input[type="time"]:focus,
+input[type="datetime-local"]:focus, input[type="search"]:focus,
+input[type="month"]:focus, input[type="week"]:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--color-primary-500, #14a457);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary-500) 16%, transparent);
+}
+
+/* error state: Django wraps invalid fields in div.errors */
+.errors input, .errors select, .errors textarea {
+  border-color: color-mix(in srgb, #B3261E 55%, transparent);
+}
+.errors input:focus, .errors select:focus, .errors textarea:focus {
+  border-color: #B3261E;
+  box-shadow: 0 0 0 3px rgba(179, 38, 30, .14);
+}
+
+/* disabled / readonly affordances */
+input:disabled, select:disabled, textarea:disabled,
+input[readonly], textarea[readonly] {
+  opacity: .62;
+  cursor: not-allowed;
+  background-color: color-mix(in srgb, var(--color-base-500) 6%, #ffffff);
+}
+
+/* placeholders quiet but legible */
+input::placeholder, textarea::placeholder {
+  color: var(--color-base-400, #99a1af);
+  opacity: 1;
+}
+
+/* checkboxes & radios follow the brand */
+input[type="checkbox"], input[type="radio"] {
+  accent-color: var(--color-primary-600, #0e7a3d);
+}
+
+/* selects: custom chevron, native arrow replaced */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%236a7282' stroke-width='1.7' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 11px 7px;
+  padding-right: 26px;
+}
+select[multiple] {
+  -webkit-appearance: auto;
+  appearance: auto;
+  background-image: none;
+  padding-right: 0.625rem;
+}
+
+/* dark mode field surface */
+html.dark input[type="text"], html.dark input[type="number"],
+html.dark input[type="email"], html.dark input[type="password"],
+html.dark input[type="url"], html.dark input[type="tel"],
+html.dark input[type="date"], html.dark input[type="time"],
+html.dark input[type="datetime-local"], html.dark input[type="search"],
+html.dark input[type="month"], html.dark input[type="week"],
+html.dark select, html.dark textarea {
+  background-color: color-mix(in srgb, var(--color-base-500) 9%, transparent);
+  border-color: var(--color-base-700, #364153);
+  color: var(--color-font-default-dark, #d1d5dc);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .18);
+}
+html.dark input[type="text"]:hover, html.dark input[type="number"]:hover,
+html.dark input[type="email"]:hover, html.dark input[type="password"]:hover,
+html.dark input[type="url"]:hover, html.dark input[type="tel"]:hover,
+html.dark input[type="date"]:hover, html.dark input[type="time"]:hover,
+html.dark input[type="datetime-local"]:hover, html.dark input[type="search"]:hover,
+html.dark input[type="month"]:hover, html.dark input[type="week"]:hover,
+html.dark select:hover, html.dark textarea:hover {
+  border-color: var(--color-base-600, #4b5563);
+}
+html.dark select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2399a1af' stroke-width='1.7' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+html.dark input::placeholder, html.dark textarea::placeholder {
+  color: var(--color-base-500, #6a7282);
+}
+html.dark input:disabled, html.dark select:disabled, html.dark textarea:disabled,
+html.dark input[readonly], html.dark textarea[readonly] {
+  background-color: color-mix(in srgb, var(--color-base-500) 7%, transparent);
+}
+
+/* Chrome autofill must not paint white over dark fields (global, was
+   login-only in v2.5) */
+input:-webkit-autofill, input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  -webkit-text-fill-color: var(--color-font-default-light, #364153);
+  caret-color: var(--color-font-default-light, #364153);
+  transition: background-color 9999s ease-in-out 0s;
+}
+html.dark input:-webkit-autofill, html.dark input:-webkit-autofill:hover,
+html.dark input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #1d2939 inset;
+  -webkit-text-fill-color: var(--color-font-default-dark, #d1d5dc);
+  caret-color: var(--color-font-important-dark, #f2f4f7);
+}
 
 /* -- buttons: compact, crisp -------------------------------------------- */
 button,
@@ -1068,7 +1194,7 @@ html.dark .vp-heat-4 { color: #4ADE80; }
 .vp-audit-filters input {
   font-size: 12.5px; padding: 7px 10px; border-radius: 8px;
   border: 1px solid var(--vp-border);
-  background: var(--vp-card-bg, transparent); color: inherit;
+  background-color: var(--vp-card-bg, transparent); color: inherit;
 }
 .vp-act {
   display: inline-block; font-size: 11px; font-weight: 700;
@@ -1099,7 +1225,7 @@ html.dark .vp-act-blue { color: #93C5FD; }
   flex: 1; resize: vertical; font-size: 13px; line-height: 1.45;
   padding: 9px 11px; border-radius: 9px;
   border: 1px solid var(--vp-border);
-  background: var(--vp-card-bg, transparent); color: inherit;
+  background-color: var(--vp-card-bg, transparent); color: inherit;
 }
 .vp-notes { display: flex; flex-direction: column; gap: 8px; }
 .vp-note {
@@ -1113,7 +1239,7 @@ html.dark .vp-act-blue { color: #93C5FD; }
 .vp-suspend-inline input {
   font-size: 12.5px; padding: 7px 10px; border-radius: 8px;
   border: 1px solid color-mix(in srgb, #B3261E 40%, transparent);
-  background: var(--vp-card-bg, transparent); color: inherit;
+  background-color: var(--vp-card-bg, transparent); color: inherit;
 }
 .vp-btn-primary {
   background: var(--color-primary-600); color: #fff;
@@ -1400,4 +1526,191 @@ html.dark .vp-tip {
    Hero chip links measured 22px tall — under any touch guideline. ---------- */
 @media (max-width: 640px) {
   a.vp-chip { min-height: 30px; padding-top: 4px; padding-bottom: 4px; }
+}
+
+/* ==========================================================================
+   v2.7.0 — LOGIN MOTION + INPUT SYSTEM
+   Lottie (self-hosted lottie-web + generated JSONs): radar-orbit hero on
+   the brand panel, compact copy above the eyebrow < 1280px, 3-dot pulse
+   loader inside the submit button. Inputs: 40px fields with inline icons,
+   gradient CTA, error shake, Caps Lock hint. Global admin input system
+   upgraded in the v1.9 block above (hover/focus/error/chevron/dark).
+   ========================================================================== */
+
+/* ---------- login: 40px touch-friendly auth fields -----------------------
+   The admin stays dense (h-8); the login surface is a display context, so
+   fields get auth-page scale. Left padding clears the inline icon; the
+   password keeps v2.5's 42px right clearance for the show/hide toggle. --- */
+.vp-login .form-field input[type="text"],
+.vp-login .form-field input[type="password"] {
+  min-height: 40px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 34px;
+  padding-right: 12px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+.vp-login .vp-pw-wrap input[type="password"] { padding-right: 42px; }
+
+/* inline person / lock icons — anchored to the input row inside the same
+   top-anchored scheme as the v2.5 toggle: label (19px) + gap (6px) puts the
+   40px input at y=25, icon 17px centers at 25 + (40-17)/2 ≈ 36px */
+.vp-icon-field { position: relative; }
+.vp-inp-icon {
+  position: absolute;
+  left: 11px;
+  top: 36px;
+  font-size: 17px;
+  width: 17px;
+  height: 17px;
+  color: var(--color-base-400, #99a1af);
+  pointer-events: none;
+}
+html.dark .vp-inp-icon { color: var(--color-base-500, #6a7282); }
+
+/* labels: quiet support, never competing with the values */
+.vp-login .form-field label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-font-important-light, #101828);
+}
+html.dark .vp-login .form-field label {
+  color: var(--color-font-important-dark, #f2f4f7);
+}
+
+/* eyebrow gains a "live platform" pulse dot */
+.vp-login-eyebrow::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-primary-500, #14a457);
+  margin-right: 7px;
+  vertical-align: 1px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary-500) 18%, transparent);
+}
+
+/* ---------- login: gradient CTA + Lottie busy state -----------------------
+   Unfold's primary button classes stay; this re-skins it: brand gradient,
+   green-tinted shadow, hover lift. .vp-btn-busy overlays the label and is
+   revealed by .is-loading (added on submit). ----------------------------- */
+.vp-login .submit-row {
+  height: 42px;
+  background: linear-gradient(180deg, var(--color-primary-500), var(--color-primary-600));
+  border-color: var(--color-primary-700, #0b5d30);
+  box-shadow:
+    0 1px 2px rgba(7, 64, 31, .24),
+    0 6px 16px color-mix(in srgb, var(--color-primary-600) 30%, transparent);
+  transition: box-shadow .18s ease, transform .12s ease,
+              filter .15s ease, opacity .15s ease;
+}
+.vp-login .submit-row:hover {
+  background: linear-gradient(180deg, var(--color-primary-400), var(--color-primary-600));
+  box-shadow:
+    0 2px 4px rgba(7, 64, 31, .28),
+    0 10px 22px color-mix(in srgb, var(--color-primary-600) 38%, transparent);
+  transform: translateY(-1px);
+  filter: none;
+}
+.vp-login .submit-row:active {
+  transform: translateY(0);
+  filter: brightness(.96);
+}
+.vp-login .submit-row:disabled {
+  opacity: .72;
+  cursor: not-allowed;
+  filter: saturate(.9);
+  transform: none;
+}
+
+.vp-btn-face {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: opacity .16s ease;
+}
+.vp-btn-busy {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffffff;
+  opacity: 0;
+  transition: opacity .16s ease;
+}
+.vp-lottie-slot { width: 18px; height: 18px; }
+.vp-lottie-slot svg { width: 100%; height: 100%; display: block; }
+.vp-login .submit-row.is-loading {
+  pointer-events: none;
+  filter: saturate(.92) brightness(.97);
+}
+.vp-login .submit-row.is-loading .vp-btn-face { opacity: 0; }
+.vp-login .submit-row.is-loading .vp-btn-busy { opacity: 1; }
+
+/* ---------- login: Caps Lock hint ----------------------------------------- */
+.vp-caps-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #B45309;
+}
+.vp-caps-hint .material-symbols-outlined { font-size: 13px; width: 13px; height: 13px; }
+.vp-caps-hint[hidden] { display: none; }
+
+/* ---------- login: error shake (plays once on server-rendered errors) ----- */
+@keyframes vp-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-3px); }
+  40%, 60% { transform: translateX(3px); }
+}
+.vp-login-shake { animation: vp-shake .5s cubic-bezier(.36, .07, .19, .97) both; }
+
+/* ---------- login: Lottie containers -------------------------------------- */
+.vp-login-lottie { position: relative; overflow: hidden; }
+.vp-login-lottie svg { width: 100% !important; height: 100% !important; }
+
+/* brand panel hero — tenants orbiting the platform */
+.vp-login-lottie-brand {
+  width: min(340px, 82%);
+  height: 200px;
+}
+/* compact copy above the eyebrow, only where the brand panel is hidden —
+   1:1 medallion (square orbit JSON) so nothing crops */
+.vp-login-head .vp-login-lottie-m {
+  width: 128px;
+  height: 128px;
+  margin: 2px 0 8px;
+}
+@media (min-width: 1280px) {
+  .vp-login-head .vp-login-lottie-m { display: none; }
+}
+@media (max-height: 620px) {
+  .vp-login-head .vp-login-lottie-m { display: none; }
+}
+
+/* the panel gained a 200px child: tighten gaps + shrink hero on short
+   viewports instead of clipping (panel has overflow:hidden) */
+.vp-login-brand { gap: 16px; }
+@media (max-height: 860px) {
+  .vp-login-lottie-brand { height: 150px; }
+}
+@media (max-height: 760px) {
+  .vp-login-lottie-brand { height: 118px; }
+}
+
+/* ---------- motion safety -------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .vp-login-shake { animation: none; }
+  .vp-btn-face, .vp-btn-busy { transition: none; }
+  .vp-login .submit-row { transition: none; }
 }
