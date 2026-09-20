@@ -28,11 +28,27 @@ their own back-office):
   (the safe stand-in for login-as impersonation) with CRM notes and
   audited quick actions (plan move, test flag).
 - Call-sheet CSV export at /admin/money-radar/export.csv.
+
+v2.9.0 — OWNER OS II (impersonation, feature flags, staff RBAC):
+- Login-as kit at /admin/tenant/<id>/login-as/: mints a SHORT-LIVED
+  Supabase magic link + 6-digit OTP for one of the tenant's auth users
+  (admin generate_link via service key) — no passwords touched, nothing
+  stored, every issuance audited (user.loginas). The tenant-360 "login
+  as" card targets the shop's owner-role account.
+- Feature flags at /admin/flags/ (matrix) + per-tenant card on tenant
+  360: public.tenant_flags booleans, RLS read-only for app users, console
+  is the only writer (tenant.flag_set audited). Catalog: receipt ads,
+  AI insights, beta reports, maintenance kill switch — plus custom keys.
+- Console staff RBAC at /admin/staff/ (owner-only page): roles
+  owner > support > observer in django_admin.console_roles, default-deny
+  for unlisted users. Every ModelAdmin and custom view re-checks the
+  role server-side; Django superuser is always owner.
 """
 import csv
 
 from django.contrib import admin, messages
 from django.contrib.auth.signals import user_login_failed
+from django.core.exceptions import PermissionDenied
 from django.db import connection, IntegrityError, transaction
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
@@ -43,6 +59,7 @@ from unfold.contrib.filters.admin import RangeNumericFilter, RelatedDropdownFilt
 from unfold.sites import UnfoldAdminSite
 
 from . import models
+from . import owneros
 from . import throttle
 from .dashboard import (
     PERIODS,
@@ -71,11 +88,36 @@ from .filters import (
 )
 
 
+def _require_role(minimum: str):
+    """v2.9.0 — server-side role gate for custom admin views.
+    Insufficient role raises 403 (never a silent UI hide)."""
+    def deco(fn):
+        def wrapper(self, request, *args, **kwargs):
+            if not owneros.at_least(request.user, minimum):
+                raise PermissionDenied(
+                    f"Your console role ({owneros.ROLES[owneros.role_of(request.user)]['label']}) "
+                    f"does not allow this action — minimum: "
+                    f"{owneros.ROLES[minimum]['label']}.")
+            return fn(self, request, *args, **kwargs)
+        wrapper.__name__ = fn.__name__
+        wrapper.__qualname__ = fn.__qualname__
+        return wrapper
+    return deco
+
+
 class VeloAdminSite(UnfoldAdminSite):
     site_header = "Velo Owner Console"
     site_title = "Velo Admin"
     index_title = "Platform overview"
     index_template = "admin/velo_index.html"
+
+    def each_context(self, request):
+        ctx = super().each_context(request)
+        role = owneros.role_of(request.user)
+        ctx["velo_role"] = role
+        ctx["velo_role_label"] = owneros.ROLES[role]["label"]
+        ctx["velo_role_blurb"] = owneros.ROLES[role]["blurb"]
+        return ctx
 
     def login(self, request, extra_context=None):
         """v2.8.0 — brute-force gate: after 5 failed attempts for the same
@@ -127,6 +169,15 @@ class VeloAdminSite(UnfoldAdminSite):
             path("tenant/<int:shop_id>/restore/",
                  self.admin_view(self.restore_tenant),
                  name="velo_tenant_restore"),
+            path("flags/",
+                 self.admin_view(self.flags_view),
+                 name="velo_flags"),
+            path("staff/",
+                 self.admin_view(self.staff_view),
+                 name="velo_staff"),
+            path("tenant/<int:shop_id>/login-as/",
+                 self.admin_view(self.login_as_view),
+                 name="velo_loginas"),
         ] + urls
 
     def money_radar_view(self, request):
@@ -134,7 +185,129 @@ class VeloAdminSite(UnfoldAdminSite):
                       {"radar": money_radar(),
                        **self.each_context(request)})
 
+    # ---- v2.9.0: feature-flag matrix (read: all roles · write: support+)
+    def flags_view(self, request):
+        if request.method == "POST":
+            if not owneros.at_least(request.user, "support"):
+                raise PermissionDenied("Support role or higher required to "
+                                       "change tenant flags.")
+            try:
+                shop_id = int(request.POST.get("shop_id") or 0)
+            except (TypeError, ValueError):
+                shop_id = 0
+            flag = (request.POST.get("flag") or "").strip()
+            enabled = request.POST.get("enabled") == "1"
+            if shop_id and owneros.valid_flag_name(flag):
+                with connection.cursor() as cur:
+                    cur.execute("select name from public.shops where id = %s",
+                                [shop_id])
+                    row = cur.fetchone()
+                owneros.set_flag(shop_id, flag, enabled, "",
+                                 request.user.username)
+                _audit(request, "tenant.flag_set",
+                       f"shop #{shop_id} {row[0] if row else ''}",
+                       f"{flag} → {'ON' if enabled else 'OFF'}")
+                messages.add_message(
+                    request, messages.SUCCESS,
+                    f"Flag “{flag}” {'enabled' if enabled else 'disabled'}.")
+            else:
+                messages.add_message(request, messages.ERROR,
+                                     "Invalid flag or tenant.")
+            return HttpResponseRedirect("/admin/flags/")
+        with connection.cursor() as cur:
+            cur.execute(
+                "select id, name, plan, is_test, is_suspended "
+                "from public.shops order by is_test, name")
+            cols = [c[0] for c in cur.description]
+            shops = [dict(zip(cols, r)) for r in cur.fetchall()]
+        fmap = owneros.tenant_flags_map()
+        tenants = [{**s, "flags": fmap.get(s["id"], {})} for s in shops]
+        return render(request, "admin/velo_flags.html",
+                      {"tenants": tenants,
+                       "catalog": owneros.FLAGS_CATALOG,
+                       "can_write": owneros.at_least(request.user, "support"),
+                       **self.each_context(request)})
+
+    # ---- v2.9.0: console staff RBAC (owner-only page)
+    @_require_role("owner")
+    def staff_view(self, request):
+        if request.method == "POST":
+            action = request.POST.get("action", "")
+            if action == "create":
+                user, err = owneros.create_staff_user(
+                    request.POST.get("username"),
+                    request.POST.get("password") or "",
+                    request.POST.get("role") or "observer",
+                    request.user.username)
+                if err:
+                    messages.add_message(request, messages.ERROR, err)
+                else:
+                    _audit(request, "staff.create",
+                           f"console user {user.username}",
+                           f"role {request.POST.get('role')}")
+                    messages.add_message(
+                        request, messages.SUCCESS,
+                        f"Console user “{user.username}” created.")
+            elif action == "role":
+                try:
+                    uid = int(request.POST.get("user_id") or 0)
+                except (TypeError, ValueError):
+                    uid = 0
+                target = owneros.role_of_by_id(uid)
+                new_role = request.POST.get("role") or ""
+                if uid and target != "owner" and \
+                        owneros.set_role(uid, new_role,
+                                         request.user.username):
+                    _audit(request, "staff.role",
+                           f"console user #{uid}", f"role set → {new_role}")
+                    messages.add_message(request, messages.SUCCESS,
+                                         "Role updated.")
+                else:
+                    messages.add_message(
+                        request, messages.ERROR,
+                        "Could not set role (owners keep their role; "
+                        "invalid role value).")
+            elif action == "active":
+                try:
+                    uid = int(request.POST.get("user_id") or 0)
+                except (TypeError, ValueError):
+                    uid = 0
+                active = request.POST.get("active") == "1"
+                err = owneros.set_active(uid, active, request.user)
+                if err:
+                    messages.add_message(request, messages.ERROR, err)
+                else:
+                    _audit(request, "staff.active", f"console user #{uid}",
+                           "deactivated" if not active else "reactivated")
+                    messages.add_message(request, messages.SUCCESS,
+                                         "Account status updated.")
+            return HttpResponseRedirect("/admin/staff/")
+        return render(request, "admin/velo_staff.html",
+                      {"staff": owneros.staff_list(),
+                       "roles": owneros.ROLES,
+                       **self.each_context(request)})
+
+    # ---- v2.9.0: login-as impersonation kit (support+)
+    @_require_role("support")
+    def login_as_view(self, request, shop_id):
+        if request.method != "POST":
+            return HttpResponseRedirect(f"/admin/tenant/{shop_id}/")
+        target = request.POST.get("user_id") or None
+        try:
+            kit = owneros.login_as_kit(shop_id, target)
+        except owneros.LoginAsError as e:
+            messages.add_message(request, messages.ERROR, str(e))
+            return HttpResponseRedirect(f"/admin/tenant/{shop_id}/")
+        _audit(request, "user.loginas",
+               f"shop #{shop_id} {kit['name']}",
+               f"magic link + OTP issued for {kit['email']} "
+               f"(type={kit['verification_type']})")
+        return render(request, "admin/velo_loginas.html",
+                      {"kit": kit,
+                       **self.each_context(request)})
+
     # ---- v2.4.0: tenant 360 (read-only dossier + notes + quick actions)
+    # v2.9.0: role gates per action — note/test: support+, plan: owner.
     def tenant_view(self, request, shop_id):
         data = tenant_360(shop_id)
         if data is None:
@@ -145,6 +318,9 @@ class VeloAdminSite(UnfoldAdminSite):
         if request.method == "POST":
             action = request.POST.get("action", "")
             if action == "note":
+                if not owneros.at_least(request.user, "support"):
+                    raise PermissionDenied("Support role or higher required "
+                                           "to add notes.")
                 body = (request.POST.get("body") or "").strip()
                 if body:
                     add_note(shop_id, request.user.username, body[:2000])
@@ -153,6 +329,9 @@ class VeloAdminSite(UnfoldAdminSite):
                     messages.add_message(request, messages.SUCCESS,
                                          "Note added to the tenant trail.")
             elif action == "plan":
+                if not owneros.at_least(request.user, "owner"):
+                    raise PermissionDenied("Only the owner can move plans "
+                                           "(billing lever).")
                 plan = request.POST.get("plan", "")
                 if plan in {"free", "starter", "pro", "business"}:
                     with connection.cursor() as cur:
@@ -164,6 +343,9 @@ class VeloAdminSite(UnfoldAdminSite):
                     messages.add_message(request, messages.SUCCESS,
                                          f"Tenant moved to the {plan} plan.")
             elif action == "test":
+                if not owneros.at_least(request.user, "support"):
+                    raise PermissionDenied("Support role or higher required "
+                                           "to change the test flag.")
                 flag = request.POST.get("flag") == "1"
                 with connection.cursor() as cur:
                     cur.execute(
@@ -175,9 +357,34 @@ class VeloAdminSite(UnfoldAdminSite):
                        else "unmarked — back to real")
                 messages.add_message(request, messages.SUCCESS,
                                      "Test flag updated.")
+            elif action == "flag":
+                if not owneros.at_least(request.user, "support"):
+                    raise PermissionDenied("Support role or higher required "
+                                           "to change tenant flags.")
+                flag = (request.POST.get("flag_name") or "").strip()
+                enabled = request.POST.get("enabled") == "1"
+                if owneros.valid_flag_name(flag):
+                    owneros.set_flag(shop_id, flag, enabled,
+                                     (request.POST.get("note") or "").strip(),
+                                     request.user.username)
+                    _audit(request, "tenant.flag_set",
+                           f"shop #{shop_id} {name}",
+                           f"{flag} → {'ON' if enabled else 'OFF'}")
+                    messages.add_message(
+                        request, messages.SUCCESS,
+                        f"Flag “{flag}” {'enabled' if enabled else 'disabled'}.")
+                else:
+                    messages.add_message(
+                        request, messages.ERROR,
+                        "Flag keys are lowercase letters, digits and "
+                        "underscores (2–64 chars).")
             return HttpResponseRedirect(f"/admin/tenant/{shop_id}/")
         return render(request, "admin/velo_tenant.html",
                       {"t360": data, "plan_choices": PLAN_PRICES_ETB,
+                       "flags": owneros.tenant_flags(shop_id),
+                       "catalog": owneros.FLAGS_CATALOG,
+                       "imp_available": owneros.impersonation_available(),
+                       "imp_targets": owneros.impersonation_targets(shop_id),
                        **self.each_context(request)})
 
     # ---- v2.4.0: owner audit trail page (who did what, when, from where)
@@ -210,7 +417,11 @@ class VeloAdminSite(UnfoldAdminSite):
 
     # ---- tenant suspension (danger zone) -------------------------------
     def _set_suspension(self, request, shop_id, suspend: bool):
-        """Flip shops.is_suspended only — never touches business data."""
+        """Flip shops.is_suspended only — never touches business data.
+        v2.9.0: support role or higher (server-side, not just UI)."""
+        if not owneros.at_least(request.user, "support"):
+            raise PermissionDenied("Support role or higher required to "
+                                   "suspend or restore tenants.")
         if request.method != "POST":
             return HttpResponseRedirect("/admin/")
         if not shop_id:  # dashboard form posts the id in the body
@@ -401,33 +612,57 @@ class _GuardedDeleteMixin:
         return admin.actions.delete_selected(self, request, queryset)
 
 
-class FullPowerAdmin(_GuardedDeleteMixin, ModelAdmin):
-    """Owner-level CRUD: add, change, delete — the console's nuclear option."""
+class RoleGateMixin:
+    """v2.9.0 — RBAC for every ModelAdmin page.
+
+    owner:    add/change/delete as before (reference-guarded deletes).
+    support:  view everything, change NOTHING through model forms —
+              support acts through the audited custom views (tenant 360
+              quick actions, flags, bans, suspensions) instead.
+    observer: view-only, everywhere.
+
+    The site itself already requires an active staff login; roles never
+    widen access, they only narrow it.
+    """
+
+    def has_module_permission(self, request):
+        return True  # all console roles may browse the sidebar
+
+    def has_view_permission(self, request, obj=None):
+        return True
+
+    def has_add_permission(self, request):
+        return owneros.at_least(request.user, "owner")
+
+    def has_change_permission(self, request, obj=None):
+        return owneros.at_least(request.user, "owner")
+
+    def has_delete_permission(self, request, obj=None):
+        return (owneros.at_least(request.user, "owner")
+                and super().has_delete_permission(request, obj))
+
+
+class FullPowerAdmin(RoleGateMixin, _GuardedDeleteMixin, ModelAdmin):
+    """Owner-level CRUD: add, change, delete — the console's nuclear option
+    (v2.9.0: owner role only — see RoleGateMixin)."""
 
     list_fullwidth = True
 
-    def has_add_permission(self, request):
-        return True
 
-    def has_change_permission(self, request, obj=None):
-        return True
-
-
-class TransactionalAdmin(_GuardedDeleteMixin, ModelAdmin):
+class TransactionalAdmin(RoleGateMixin, _GuardedDeleteMixin, ModelAdmin):
     """Repair-level access for transactional records: edit & delete only.
 
     These rows originate in the app (sales, payments, ledger, stock); the
     console can fix or remove them but never fabricate them, keeping the
     app's invariants (receipt numbering, stock math) intact.
+    v2.9.0: owner role only for edits/deletes; adds stay impossible for
+    everyone.
     """
 
     list_fullwidth = True
 
     def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return True
+        return False  # transactional records are never fabricated
 
 
 def _plan_action(plan_name):
@@ -524,8 +759,13 @@ class ShopAdmin(FullPowerAdmin):
             _audit(request, "tenant.plan", f"shop #{obj.pk} {obj.name}",
                    f"{old_plan} → {obj.plan}")
 
-    @admin.action(description="Suspend selected tenants (reversible)")
+    @admin.action(description="Suspend selected tenants (reversible)",
+                  permissions=["view"])
     def suspend_selected(self, request, queryset):
+        if not owneros.at_least(request.user, "support"):
+            self.message_user(request, "Support role or higher required.",
+                              level=messages.ERROR)
+            return
         count = 0
         for shop in queryset:
             if not shop.is_suspended:
@@ -537,8 +777,12 @@ class ShopAdmin(FullPowerAdmin):
         self.message_user(request, f"{count} tenant(s) suspended.",
                           level=messages.WARNING)
 
-    @admin.action(description="Restore selected tenants")
+    @admin.action(description="Restore selected tenants", permissions=["view"])
     def restore_selected(self, request, queryset):
+        if not owneros.at_least(request.user, "support"):
+            self.message_user(request, "Support role or higher required.",
+                              level=messages.ERROR)
+            return
         count = 0
         for shop in queryset:
             if shop.is_suspended:
@@ -552,8 +796,14 @@ class ShopAdmin(FullPowerAdmin):
 
     # v2.3.0 — test-tenant flag: keeps demo/signup-test shops out of the
     # radar's health bands, upsell pipeline and heartbeat denominators.
-    @admin.action(description="Mark selected shops as TEST tenants")
+    # v2.9.0 — support+ (server-side), visible in list UI for all roles.
+    @admin.action(description="Mark selected shops as TEST tenants",
+                  permissions=["view"])
     def mark_test(self, request, queryset):
+        if not owneros.at_least(request.user, "support"):
+            self.message_user(request, "Support role or higher required.",
+                              level=messages.ERROR)
+            return
         names = [f"shop #{s.id} {s.name}" for s in queryset]
         count = queryset.update(is_test=True)
         for nm in names:
@@ -563,8 +813,13 @@ class ShopAdmin(FullPowerAdmin):
             f"{count} shop(s) marked as test tenants — excluded from "
             "radar health stats.", level=messages.SUCCESS)
 
-    @admin.action(description="Unmark test tenants (back to real)")
+    @admin.action(description="Unmark test tenants (back to real)",
+                  permissions=["view"])
     def unmark_test(self, request, queryset):
+        if not owneros.at_least(request.user, "support"):
+            self.message_user(request, "Support role or higher required.",
+                              level=messages.ERROR)
+            return
         names = [f"shop #{s.id} {s.name}" for s in queryset]
         count = queryset.update(is_test=False)
         for nm in names:
@@ -627,8 +882,13 @@ class AdminAuthUserAdmin(TransactionalAdmin):
                 '<span class="vp-pill vp-pill-suspended">banned</span>')
         return format_html('<span class="vp-pill vp-pill-active">ok</span>')
 
-    @admin.action(description="Ban selected app users (blocks sign-in)")
+    @admin.action(description="Ban selected app users (blocks sign-in)",
+                  permissions=["view"])
     def ban_users(self, request, queryset):
+        if not owneros.at_least(request.user, "support"):
+            self.message_user(request, "Support role or higher required.",
+                              level=messages.ERROR)
+            return
         count = 0
         for user in queryset:
             with connection.cursor() as cur:
@@ -643,8 +903,12 @@ class AdminAuthUserAdmin(TransactionalAdmin):
                           f"{count} app user(s) banned (sign-in blocked).",
                           level=messages.WARNING)
 
-    @admin.action(description="Unban selected app users")
+    @admin.action(description="Unban selected app users", permissions=["view"])
     def unban_users(self, request, queryset):
+        if not owneros.at_least(request.user, "support"):
+            self.message_user(request, "Support role or higher required.",
+                              level=messages.ERROR)
+            return
         count = 0
         for user in queryset:
             with connection.cursor() as cur:

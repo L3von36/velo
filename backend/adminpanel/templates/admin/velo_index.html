@@ -25,12 +25,18 @@
       <div class="vp-hero-nav">
         <a class="vp-chip vp-chip-green" href="/admin/money-radar/" style="text-decoration:none"><span class="material-symbols-outlined">radar</span> Money Radar</a>
         <a class="vp-chip" href="/admin/audit/" style="text-decoration:none"><span class="material-symbols-outlined">history</span> Owner audit</a>
+        {% if velo_role != 'observer' %}
+        <a class="vp-chip" href="/admin/flags/" style="text-decoration:none"><span class="material-symbols-outlined">toggle_on</span> Feature flags</a>
+        {% endif %}
+        {% if velo_role == 'owner' %}
+        <a class="vp-chip" href="/admin/staff/" style="text-decoration:none"><span class="material-symbols-outlined">manage_accounts</span> Console staff</a>
+        {% endif %}
       </div>
 
       {# meta/reassurance chips — hidden on phones to keep the hero tight #}
       <div class="vp-hero-meta vp-hide-sm">
         <span class="vp-chip"><span class="material-symbols-outlined">database</span> Supabase · bypasses RLS</span>
-        <span class="vp-chip"><span class="material-symbols-outlined">admin_panel_settings</span> Owner privileges · full control</span>
+        <span class="vp-chip"><span class="material-symbols-outlined">admin_panel_settings</span> {{ velo_role_label }} · {{ velo_role_blurb }}</span>
       </div>
     </div>
   </div>

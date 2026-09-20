@@ -1,0 +1,129 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="vp">
+
+  {# ---------- hero ---------- #}
+  <div class="vp-hero">
+    <div>
+      <h1>Console staff</h1>
+      <p>Who can open this console, and how much they can do · roles are
+         enforced server-side on every page, not just hidden in the UI ·
+         every change is audited</p>
+    </div>
+    <div class="vp-hero-badges">
+      <span class="vp-chip"><span class="material-symbols-outlined">group</span> {{ staff|length }} console user{{ staff|length|pluralize }}</span>
+      <span class="vp-chip"><span class="material-symbols-outlined">verified_user</span> default-deny — unlisted users are observers</span>
+    </div>
+  </div>
+
+  {# ---------- role ladder ---------- #}
+  <div class="vp-panel">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">stairs</span> Role ladder</h2>
+      <span class="vp-muted">least privilege — give the lowest role that does the job</span>
+    </div>
+    <div class="vp-plan-row">
+      {% for key, r in roles.items %}
+      <span class="vp-chip {% if key == 'owner' %}vp-chip-green{% elif key == 'support' %}vp-chip-gold{% endif %}">
+        <span class="material-symbols-outlined">{% if key == 'owner' %}shield{% elif key == 'support' %}support_agent{% else %}visibility{% endif %}</span>
+        <b>{{ r.label }}</b>&nbsp;{{ r.blurb }}
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ---------- users ---------- #}
+  <div class="vp-panel">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">manage_accounts</span> Console users</h2>
+      <span class="vp-muted">console logins only — completely separate from app (Supabase auth) users</span>
+    </div>
+    <div class="vp-table-wrap">
+    <table class="vp-table">
+      <thead>
+        <tr><th>User</th><th>Role</th><th>Last login</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for u in staff %}
+        <tr>
+          <td>
+            <b>{{ u.username }}</b>
+            {% if u.is_superuser %}<span class="vp-pill vp-pill-active">django superuser</span>{% endif %}
+            <div class="vp-dim">joined {{ u.date_joined|date:"M d Y" }}</div>
+          </td>
+          <td>
+            {% if u.role == 'owner' or u.is_superuser %}
+              <span class="vp-pill vp-pill-active">owner</span>
+            {% else %}
+            <form method="post" class="vp-inline-form">
+              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+              <input type="hidden" name="action" value="role">
+              <input type="hidden" name="user_id" value="{{ u.id }}">
+              <select name="role" class="vp-select">
+                {% for key, r in roles.items %}
+                {% if key != 'owner' %}
+                <option value="{{ key }}" {% if u.role == key %}selected{% endif %}>{{ r.label }}</option>
+                {% endif %}
+                {% endfor %}
+              </select>
+              <button type="submit" class="vp-btn vp-btn-ghost">Set</button>
+            </form>
+            {% endif %}
+          </td>
+          <td class="vp-dim">{{ u.last_login|date:"M d Y, H:i"|default:"never" }}</td>
+          <td>
+            {% if u.is_active %}<span class="vp-pill vp-pill-active">active</span>
+            {% else %}<span class="vp-pill vp-pill-suspended">deactivated</span>{% endif %}
+          </td>
+          <td>
+            {% if u.id != request.user.id %}
+            <form method="post" class="vp-inline-form">
+              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+              <input type="hidden" name="action" value="active">
+              <input type="hidden" name="user_id" value="{{ u.id }}">
+              {% if u.is_active %}
+              <input type="hidden" name="active" value="0">
+              <button type="submit" class="vp-btn vp-btn-danger">Deactivate</button>
+              {% else %}
+              <input type="hidden" name="active" value="1">
+              <button type="submit" class="vp-btn vp-btn-ghost">Reactivate</button>
+              {% endif %}
+            </form>
+            {% else %}<span class="vp-dim">that's you</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  {# ---------- add user ---------- #}
+  <div class="vp-panel">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">person_add</span> Add console user</h2>
+      <span class="vp-muted">support or observer — owners are born, not made (superuser)</span>
+    </div>
+    <form method="post" class="vp-note-form vp-staff-form">
+      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+      <input type="hidden" name="action" value="create">
+      <input type="text" name="username" required maxlength="150" autocomplete="off"
+             placeholder="username (e.g. support-1)">
+      <input type="password" name="password" required minlength="10" autocomplete="new-password"
+             placeholder="password (min 10 chars)">
+      <select name="role" class="vp-select">
+        <option value="support">Support — notes, flags, bans, suspend</option>
+        <option value="observer" selected>Observer — read-only</option>
+      </select>
+      <button type="submit" class="vp-btn vp-btn-primary"><span class="material-symbols-outlined">add</span> Create</button>
+    </form>
+    <p class="vp-muted" style="margin-top:8px">Share the password through a safe channel.
+      The new user signs in at this same login page and sees exactly what their role allows.</p>
+  </div>
+
+</div>
+
+{{ block.super }}
+{% endblock %}

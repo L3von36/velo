@@ -149,7 +149,7 @@ UNFOLD = {
     "SITE_TITLE": "Velo Admin",
     "SITE_HEADER": "Velo Owner Console",
     "SITE_SUBHEADER": "Live platform data · Addis Ababa time",
-    "SITE_VERSION": "v2.8.0",
+    "SITE_VERSION": "v2.9.0",
     "SITE_URL": "/admin/",
     "SITE_LOGO": "/static/adminpanel/velo.svg",
     "SITE_FAVICONS": [
@@ -169,6 +169,12 @@ UNFOLD = {
                  "link": "/admin/money-radar/"},
                 {"title": "Owner audit", "icon": "history",
                  "link": "/admin/audit/"},
+            ]},
+            {"title": "Owner OS", "items": [
+                {"title": "Feature flags", "icon": "toggle_on",
+                 "link": "/admin/flags/"},
+                {"title": "Console staff", "icon": "manage_accounts",
+                 "link": "/admin/staff/"},
             ]},
             {"title": "Tenancy", "items": [
                 {"title": "Shops", "icon": "storefront",
@@ -216,6 +222,12 @@ UNFOLD = {
 # separate from Supabase Auth tenant users.
 SESSION_COOKIE_AGE = 60 * 60 * 8  # 8 hours
 SESSION_COOKIE_NAME = "velo_admin_session"
+
+# v2.9.0 — Supabase Auth Admin API access for the login-as impersonation kit.
+# The service key is scoped to GoTrue admin (mint short-lived magic links);
+# it is stored server-side only and never rendered into any page.
+VELO_SB_URL = os.environ.get("VELO_SB_URL", "")
+VELO_SB_SERVICE_KEY = os.environ.get("VELO_SB_SERVICE_KEY", "")
 
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

@@ -204,6 +204,80 @@
     {% endif %}
   </div>
 
+  {# ---------- feature flags (v2.9.0) ---------- #}
+  <div class="vp-panel">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">tune</span> Feature flags</h2>
+      <span class="vp-muted">per-tenant switches · app reads via RLS · changes audited</span>
+    </div>
+    {% if flags %}
+    <div class="vp-plan-row">
+      {% for f in flags %}
+      <form method="post" class="vp-inline-form">
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+        <input type="hidden" name="action" value="flag">
+        <input type="hidden" name="flag_name" value="{{ f.flag }}">
+        {% if f.enabled %}
+        <input type="hidden" name="enabled" value="0">
+        <button type="submit" class="vp-flag-toggle is-on"
+                title="{% if f.note %}{{ f.note }} · {% endif %}click to disable">{{ f.flag }}</button>
+        {% else %}
+        <input type="hidden" name="enabled" value="1">
+        <button type="submit" class="vp-flag-toggle"
+                title="{% if f.note %}{{ f.note }} · {% endif %}click to enable">{{ f.flag }}</button>
+        {% endif %}
+      </form>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="vp-empty">No flags set — this tenant runs on pure defaults.</p>
+    {% endif %}
+    <form method="post" class="vp-note-form vp-staff-form">
+      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+      <input type="hidden" name="action" value="flag">
+      <input type="hidden" name="enabled" value="1">
+      <input type="text" name="flag_name" required maxlength="64" pattern="[a-z0-9_]{2,64}"
+             placeholder="add custom flag (lowercase_with_underscores)">
+      <input type="text" name="note" maxlength="200" placeholder="note (optional, kept on record)">
+      <button type="submit" class="vp-btn vp-btn-ghost"><span class="material-symbols-outlined">add</span> Enable</button>
+    </form>
+    <div class="vp-plan-row" style="margin-top:8px">
+      {% for f in catalog %}<span class="vp-chip"><span class="material-symbols-outlined">menu_book</span> {{ f.flag }} — {{ f.label }}</span>{% endfor %}
+      <a class="vp-chip" href="/admin/flags/" style="text-decoration:none"><span class="material-symbols-outlined">grid_on</span> Open full matrix</a>
+    </div>
+  </div>
+
+  {# ---------- login as (v2.9.0) ---------- #}
+  <div class="vp-panel">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">login</span> Login as</h2>
+      <span class="vp-muted">short-lived support sign-in · no password touched · audited</span>
+    </div>
+    {% if imp_available %}
+      {% if imp_targets %}
+      <div class="vp-plan-row">
+        {% for t in imp_targets %}
+        <form method="post" action="/admin/tenant/{{ t360.shop.id }}/login-as/" class="vp-inline-form"
+              onsubmit="return confirm('Mint a one-time sign-in for {{ t.staff_name|escapejs }} ({{ t.email|escapejs }})? It lands in the audit trail.');">
+          <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+          <input type="hidden" name="user_id" value="{{ t.id }}">
+          <button type="submit" class="vp-btn vp-btn-ghost">
+            <span class="material-symbols-outlined">key</span>
+            {{ t.staff_name }}{% if t.staff_role == 'owner' %} (shop owner){% endif %} · {{ t.email }}
+          </button>
+        </form>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="vp-empty">No app account linked to this shop yet — the tenant
+        must sign up in the app first.</p>
+      {% endif %}
+    {% else %}
+    <p class="vp-empty">Impersonation is not configured on this deployment —
+      set <b>VELO_SB_URL</b> and <b>VELO_SB_SERVICE_KEY</b> env vars.</p>
+    {% endif %}
+  </div>
+
   {# ---------- quick actions (audited) ---------- #}
   <div class="vp-panel vp-danger">
     <div class="vp-panel-head">

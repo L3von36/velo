@@ -1,0 +1,101 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% load velo_extras %}
+
+{% block content %}
+<div class="vp">
+
+  {# ---------- hero ---------- #}
+  <div class="vp-hero">
+    <div>
+      <h1>Feature flags</h1>
+      <p>Per-tenant switches — monetization levers, betas and kill switches ·
+         app users can <b>read</b> their own flags (RLS), only the console
+         writes · every change is audited</p>
+    </div>
+    <div class="vp-hero-badges">
+      <span class="vp-chip"><span class="material-symbols-outlined">tune</span> {{ catalog|length }} catalog flags</span>
+      <span class="vp-chip"><span class="material-symbols-outlined">storefront</span> {{ tenants|length }} tenants</span>
+      {% if not can_write %}<span class="vp-chip vp-chip-gold"><span class="material-symbols-outlined">lock</span> read-only — support role or higher</span>{% endif %}
+    </div>
+  </div>
+
+  {# ---------- catalog legend ---------- #}
+  <div class="vp-panel">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">menu_book</span> Flag catalog</h2>
+      <span class="vp-muted">what each switch does before you flip it</span>
+    </div>
+    <div class="vp-flag-catalog">
+      {% for f in catalog %}
+      <div class="vp-flag-doc">
+        <span class="vp-tag">{{ f.flag }}</span>
+        <b>{{ f.label }}</b> — {{ f.desc }}
+      </div>
+      {% endfor %}
+      <div class="vp-flag-doc vp-flag-doc-custom">
+        <span class="vp-tag">custom</span> Tenant-specific experiments can be
+        added from each tenant's 360 page (lowercase letters, digits,
+        underscores).
+      </div>
+    </div>
+  </div>
+
+  {# ---------- matrix ---------- #}
+  <div class="vp-panel">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">toggle_on</span> Tenant matrix</h2>
+      <span class="vp-muted">tap a pill to flip · test tenants at the bottom</span>
+    </div>
+    <div class="vp-table-wrap">
+    <table class="vp-table vp-flags-matrix">
+      <thead>
+        <tr>
+          <th>Tenant</th>
+          <th>Plan</th>
+          {% for f in catalog %}<th class="vp-num">{{ f.label }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tenants %}
+        <tr>
+          <td>
+            <a class="vp-link-strong" href="/admin/tenant/{{ t.id }}/">{{ t.name }}</a>
+            {% if t.is_test %}<span class="vp-pill vp-pill-test">test</span>{% endif %}
+            {% if t.is_suspended %}<span class="vp-pill vp-pill-suspended">suspended</span>{% endif %}
+          </td>
+          <td><span class="vp-tag">{{ t.plan }}</span></td>
+          {% for f in catalog %}
+          <td class="vp-num">
+            {% if can_write %}
+            <form method="post" class="vp-inline-form">
+              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+              <input type="hidden" name="shop_id" value="{{ t.id }}">
+              <input type="hidden" name="flag" value="{{ f.flag }}">
+              {% if t.flags|get:f.flag %}
+              <input type="hidden" name="enabled" value="0">
+              <button type="submit" class="vp-flag-toggle is-on"
+                      title="{{ f.desc }}">ON</button>
+              {% else %}
+              <input type="hidden" name="enabled" value="1">
+              <button type="submit" class="vp-flag-toggle"
+                      title="{{ f.desc }}">OFF</button>
+              {% endif %}
+            </form>
+            {% else %}
+            {% if t.flags|get:f.flag %}<span class="vp-flag-toggle is-on is-static">ON</span>
+            {% else %}<span class="vp-flag-toggle is-static">OFF</span>{% endif %}
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+</div>
+
+{{ block.super }}
+{% endblock %}

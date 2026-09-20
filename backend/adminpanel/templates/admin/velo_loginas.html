@@ -1,0 +1,78 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="vp">
+
+  {# ---------- hero ---------- #}
+  <div class="vp-hero">
+    <div>
+      <h1>Login as — support kit</h1>
+      <p>One-time sign-in credentials for <b>{{ kit.name }}</b>
+         <span class="vp-dim">({{ kit.email }})</span> · shop
+         #{{ kit.shop_id }}</p>
+    </div>
+    <div class="vp-hero-badges">
+      <span class="vp-chip vp-chip-gold"><span class="material-symbols-outlined">timer</span> short-lived · shown once</span>
+      <span class="vp-chip"><span class="material-symbols-outlined">history</span> this issuance is in the audit trail</span>
+      <a class="vp-chip" href="/admin/tenant/{{ kit.shop_id }}/" style="text-decoration:none"><span class="material-symbols-outlined">arrow_back</span> Back to tenant 360</a>
+    </div>
+  </div>
+
+  {# ---------- how it works ---------- #}
+  <div class="vp-panel">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">info</span> How this works</h2>
+      <span class="vp-muted">no password was read, changed or stored</span>
+    </div>
+    <p class="vp-body">
+      The console minted a short-lived sign-in token through Supabase's auth
+      admin API — the same mechanism behind "sign in as customer" at
+      support desks. Nothing was emailed to the tenant, their password is
+      untouched, and the token expires on its own. Pick <b>either</b> the
+      6-digit code or the link below — not both.
+    </p>
+    <ul class="vp-body">
+      <li><b>OTP</b> — enter the 6-digit code where the app asks for a sign-in
+        code (requires the app's support sign-in box — queued on the Flutter
+        side).</li>
+      <li><b>Magic link</b> — open on the device that should receive the
+        session; it validates once and then dies.</li>
+    </ul>
+  </div>
+
+  {# ---------- the kit ---------- #}
+  <div class="vp-panel">
+    <div class="vp-panel-head">
+      <h2><span class="material-symbols-outlined">key</span> The credentials</h2>
+      <span class="vp-muted">type: {{ kit.verification_type }} · target role in shop: {{ kit.target_role|default:"staff" }}</span>
+    </div>
+
+    <div class="vp-kit-grid">
+      <div class="vp-kit-box">
+        <div class="vp-k">6-digit code</div>
+        <div class="vp-kit-otp">{{ kit.otp|default:"—" }}</div>
+        <div class="vp-s">valid for roughly an hour · single flow</div>
+      </div>
+      <div class="vp-kit-box">
+        <div class="vp-k">Magic link</div>
+        {% if kit.action_link %}
+        <input class="vp-kit-link" type="text" readonly value="{{ kit.action_link }}"
+               onclick="this.select()">
+        <div class="vp-s">click to select · copy carefully — opens a live session</div>
+        {% else %}
+        <div class="vp-s vp-s-zero">no link returned — use the code above</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="vp-plan-row" style="margin-top:12px">
+      <span class="vp-chip vp-chip-red"><span class="material-symbols-outlined">privacy_tip</span> never ask a tenant for their password — this replaces that forever</span>
+      <span class="vp-chip"><span class="material-symbols-outlined">shield</span> act in the tenant's interest; every console action stays audited</span>
+    </div>
+  </div>
+
+</div>
+
+{{ block.super }}
+{% endblock %}

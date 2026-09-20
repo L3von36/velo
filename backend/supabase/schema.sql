@@ -804,3 +804,26 @@ language sql stable security invoker set search_path = public as $$
           where shop_id = current_shop_id() and balance > 0.009
           order by balance desc) d), '[]'::json));
 $$;
+
+-- ======================================================== owner OS (v2.9.0)
+-- Per-tenant feature flags — the platform's monetization + kill-switch lever.
+-- App users READ rows for their own shop (RLS: shop_id = current_shop_id()).
+-- Tenants can never write flags — the owner console (velo_admin, BYPASSRLS)
+-- is the only writer. Never grant write to anon/authenticated.
+create table if not exists tenant_flags (
+  shop_id bigint not null references shops(id) on delete cascade,
+  flag text not null check (flag <> '' and length(flag) <= 64),
+  enabled boolean not null default false,
+  note text not null default '',
+  updated_at timestamptz not null default now(),
+  updated_by text not null default '',
+  primary key (shop_id, flag)
+);
+alter table tenant_flags enable row level security;
+drop policy if exists tenant_flags_select on tenant_flags;
+create policy tenant_flags_select on tenant_flags for select
+  using (shop_id = current_shop_id());
+revoke insert, update, delete, truncate on tenant_flags from anon, authenticated;
+grant select on tenant_flags to authenticated;
+grant select, insert, update, delete on tenant_flags to velo_admin;
+create index if not exists tenant_flags_shop_idx on tenant_flags(shop_id);
