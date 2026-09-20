@@ -145,6 +145,18 @@ _VELO_GREEN = {
     "950": "#052A16",
 }
 
+
+def _velo_at_least(minimum):
+    """v2.9.0 — sidebar item visibility by console role (lazy import to
+    avoid circular settings import; enforced server-side anyway)."""
+    def _perm(request):
+        try:
+            from adminpanel.owneros import at_least
+            return at_least(request.user, minimum)
+        except Exception:
+            return False
+    return _perm
+
 UNFOLD = {
     "SITE_TITLE": "Velo Admin",
     "SITE_HEADER": "Velo Owner Console",
@@ -174,7 +186,8 @@ UNFOLD = {
                 {"title": "Feature flags", "icon": "toggle_on",
                  "link": "/admin/flags/"},
                 {"title": "Console staff", "icon": "manage_accounts",
-                 "link": "/admin/staff/"},
+                 "link": "/admin/staff/",
+                 "permission": _velo_at_least("owner")},
             ]},
             {"title": "Tenancy", "items": [
                 {"title": "Shops", "icon": "storefront",
