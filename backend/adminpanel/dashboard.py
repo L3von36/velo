@@ -263,7 +263,10 @@ def kpis(period: int = 14) -> dict:
               'ever_active', (select count(distinct shop_id) from public.sales),
               'suspended', (select count(*) from public.shops where is_suspended))
         ) as pack""")
-    pack = json.loads(packed[0]["pack"]) if packed else {}
+    pack = packed[0]["pack"] if packed else {}
+    # psycopg3 auto-decodes json → dict; older/raw drivers hand back a string
+    if not isinstance(pack, dict):
+        pack = json.loads(pack)
     cards = {k: (_money(v) if k.endswith("_sum") else v)
              for k, v in pack.items() if not k.startswith(("by_", "growth"))}
 
