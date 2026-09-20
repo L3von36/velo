@@ -9,7 +9,13 @@ external script, font, frame or connect exfiltration paths.
 
 CSP_POLICY = (
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline'; "
+    # unsafe-eval is REQUIRED: Unfold is Alpine.js-powered and Alpine
+    # evaluates x-show/x-bind expressions with new Function(). Without it
+    # Alpine dies silently and Unfold's (normally hidden) modal scaffold
+    # stays visible, intercepting every click. unsafe-eval only relaxes
+    # JS evaluation for OUR OWN inline scripts — external origins stay
+    # fully blocked by default-src/script-src/connect-src/frame-ancestors.
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data:; "
     "font-src 'self' data:; "
