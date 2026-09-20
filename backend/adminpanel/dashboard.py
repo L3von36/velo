@@ -54,6 +54,7 @@ tenant visibility, operator metrics):
 """
 from datetime import date, timedelta
 from decimal import Decimal
+import json
 
 from django.db import connection
 
@@ -203,40 +204,68 @@ def kpis(period: int = 14) -> dict:
     if period not in PERIODS:
         period = 14
 
-    # v2.8.0: the 13 KPI counters ride in ONE round-trip (the console used to
-    # spend 13 sequential pooler trips here — the page's biggest latency).
+    # v2.8.0: every count/aggregate the dashboard needs rides in ONE
+    # round-trip (json-packed). The console used to spend ~35 sequential
+    # pooler trips per page — the dominant share of its load time.
     # Money sums exclude refunded sales (a refund is not revenue); counts
     # remain record counts.
-    cards_row = (_rows("""
-        select
-          (select count(*) from public.shops) as shops_total,
-          (select count(*) from public.shops
-            where created_at > now() - interval '30 days') as shops_new_30d,
-          (select count(*) from public.shops where is_suspended) as shops_suspended,
-          (select count(*) from auth_users) as users_total,
-          (select count(*) from auth_users
-            where last_sign_in_at > now() - interval '7 days') as users_active_7d,
-          (select count(*) from public.items) as items_total,
-          (select count(*) from public.sales) as sales_all_count,
-          (select coalesce(sum(total), 0) from public.sales
-            where status <> 'refunded') as sales_all_sum,
-          (select count(*) from public.sales
-            where (created_at at time zone 'Africa/Addis_Ababa')::date
-                = (now() at time zone 'Africa/Addis_Ababa')::date) as sales_today_count,
-          (select coalesce(sum(total), 0) from public.sales
-            where status <> 'refunded'
-              and (created_at at time zone 'Africa/Addis_Ababa')::date
-                = (now() at time zone 'Africa/Addis_Ababa')::date) as sales_today_sum,
-          (select coalesce(sum(total), 0) from public.sales
-            where status <> 'refunded'
-              and created_at > now() - interval '7 days') as sales_7d_sum,
-          (select count(*) from public.sales
-            where created_at > now() - interval '7 days') as sales_7d_count,
-          (select coalesce(sum(amount), 0) from public.expenses
-            where created_at > now() - interval '7 days') as expenses_7d_sum
-    """) or [{}])[0]
-    cards = {k: (v if not k.endswith(("_sum",)) else _money(v))
-             for k, v in cards_row.items()}
+    packed = _rows("""
+        select json_build_object(
+          'shops_total',      (select count(*) from public.shops),
+          'shops_new_30d',    (select count(*) from public.shops
+                                where created_at > now() - interval '30 days'),
+          'shops_suspended',  (select count(*) from public.shops where is_suspended),
+          'users_total',      (select count(*) from auth_users),
+          'users_active_7d',  (select count(*) from auth_users
+                                where last_sign_in_at > now() - interval '7 days'),
+          'items_total',      (select count(*) from public.items),
+          'sales_all_count',  (select count(*) from public.sales),
+          'sales_all_sum',    (select coalesce(sum(total), 0) from public.sales
+                                where status <> 'refunded'),
+          'sales_today_count',(select count(*) from public.sales
+                                where (created_at at time zone 'Africa/Addis_Ababa')::date
+                                    = (now() at time zone 'Africa/Addis_Ababa')::date),
+          'sales_today_sum',  (select coalesce(sum(total), 0) from public.sales
+                                where status <> 'refunded'
+                                  and (created_at at time zone 'Africa/Addis_Ababa')::date
+                                    = (now() at time zone 'Africa/Addis_Ababa')::date),
+          'sales_7d_sum',     (select coalesce(sum(total), 0) from public.sales
+                                where status <> 'refunded'
+                                  and created_at > now() - interval '7 days'),
+          'sales_7d_count',   (select count(*) from public.sales
+                                where created_at > now() - interval '7 days'),
+          'expenses_7d_sum',  (select coalesce(sum(amount), 0) from public.expenses
+                                where created_at > now() - interval '7 days'),
+          'by_type', (select coalesce(json_agg(json_build_object(
+                        'business_type', t.business_type, 'shops', t.shops)), '[]')
+                      from (select business_type, count(*) as shops
+                            from public.shops group by business_type
+                            order by shops desc) t),
+          'by_plan', (select coalesce(json_agg(json_build_object(
+                        'plan', p.plan, 'shops', p.shops)), '[]')
+                      from (select plan, count(*) as shops from public.shops
+                            group by plan order by shops desc) p),
+          'growth_by_plan', (select coalesce(json_agg(json_build_object(
+                        'plan', p.plan, 'shops', p.shops)), '[]')
+                      from (select plan, count(*) as shops from public.shops
+                            where not is_test group by plan) p),
+          'growth', json_build_object(
+              'mature', (select count(*) from public.shops
+                          where created_at < now() - interval '30 days' and not is_test),
+              'churned',(select count(*) from public.shops s
+                          where s.created_at < now() - interval '30 days'
+                            and not s.is_test
+                            and not exists (select 1 from public.sales x
+                              where x.shop_id = s.id
+                                and x.created_at > now() - interval '30 days')),
+              'active_30d', (select count(distinct shop_id) from public.sales
+                              where created_at > now() - interval '30 days'),
+              'ever_active', (select count(distinct shop_id) from public.sales),
+              'suspended', (select count(*) from public.shops where is_suspended))
+        ) as pack""")
+    pack = json.loads(packed[0]["pack"]) if packed else {}
+    cards = {k: (_money(v) if k.endswith("_sum") else v)
+             for k, v in pack.items() if not k.startswith(("by_", "growth"))}
 
     recent_shops = _rows("""
         select s.id, s.name, s.business_type, s.plan, s.phone,
@@ -248,14 +277,6 @@ def kpis(period: int = 14) -> dict:
                s.total, s.method, s.status, s.created_at
         from public.sales s join public.shops sh on sh.id = s.shop_id
         order by s.created_at desc limit 8""")
-
-    by_type = _rows("""
-        select business_type, count(*) as shops
-        from public.shops group by business_type order by shops desc""")
-
-    by_plan = _rows("""
-        select plan, count(*) as shops from public.shops
-        group by plan order by shops desc""")
 
     series = _revenue_series(period)
 
@@ -273,19 +294,16 @@ def kpis(period: int = 14) -> dict:
     max_daily = max((float(r["total"]) for r in series), default=0.0)
 
     return {"cards": cards, "recent_shops": recent_shops,
-            "recent_sales": recent_sales, "by_type": by_type,
-            "by_plan": by_plan, "series": series,
+            "recent_sales": recent_sales,
+            "by_type": pack.get("by_type") or [],
+            "by_plan": pack.get("by_plan") or [], "series": series,
             "period": period, "periods": PERIODS,
-            "growth": _growth(by_plan=_rows("""
-                    select plan, count(*) as shops from public.shops
-                    where not is_test group by plan""")),
+            "growth": _growth(by_plan=pack.get("growth_by_plan")),
             "tenants": _tenant_health(),
             "top_shops": top_shops, "max_daily": max_daily,
             "radar": money_radar(),
             "funnel": _funnel(), "cohorts": _cohorts(),
             "plan_prices": PLAN_PRICES_ETB}
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -696,7 +714,9 @@ def _cohorts() -> list:
     sizes = _rows("""
         select date_trunc('week',
                  (sh.created_at at time zone 'Africa/Addis_Ababa'))::date as wk,
-               count(*) as size
+               count(*) as size,
+               (select date_trunc('week',
+                  (now() at time zone 'Africa/Addis_Ababa'))::date) as cw
         from public.shops sh
         where not sh.is_test
           and sh.created_at >= date_trunc('week',
@@ -719,9 +739,9 @@ def _cohorts() -> list:
                 (now() at time zone 'Africa/Addis_Ababa')) - interval '5 weeks'
         group by 1, 2""")
     act_map = {(a["cohort"], a["week_n"]): a["active"] for a in acts}
-    this_week = _one("""
-        select date_trunc('week',
-            (now() at time zone 'Africa/Addis_Ababa'))::date""")
+    this_week = (sizes[0].get("cw") if sizes else None) or _one(
+        "select date_trunc('week',"
+        "(now() at time zone 'Africa/Addis_Ababa'))::date")
     rows = []
     for s in sorted(sizes, key=lambda r: r["wk"], reverse=True):
         max_n = ((this_week - s["wk"]).days // 7) if this_week and s["wk"] else 0
