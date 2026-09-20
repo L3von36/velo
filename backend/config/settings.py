@@ -35,7 +35,10 @@ _load_env(BASE_DIR / ".env")
 SECRET_KEY = os.environ.get(
     "SECRET_KEY", "django-insecure-velo-admin-dev-key-not-for-production")
 DEBUG = os.environ.get("VELO_DEBUG", "0") == "1"
-ALLOWED_HOSTS = ["*"]
+# v2.8.0 — pinned instead of "*": Host-header validation is back on. The
+# leading-dot entry covers the prod domain AND Vercel preview deployments;
+# localhost entries keep local dev working.
+ALLOWED_HOSTS = [".vercel.app", "localhost", "127.0.0.1"]
 # Sandbox preview, Render, localhost — CSRF only trusts POSTs from these origins.
 CSRF_TRUSTED_ORIGINS = [
     "https://*.space-z.ai",
@@ -60,6 +63,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "adminpanel.middleware.ContentSecurityPolicyMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -145,7 +149,7 @@ UNFOLD = {
     "SITE_TITLE": "Velo Admin",
     "SITE_HEADER": "Velo Owner Console",
     "SITE_SUBHEADER": "Live platform data · Addis Ababa time",
-    "SITE_VERSION": "v2.7.0",
+    "SITE_VERSION": "v2.8.0",
     "SITE_URL": "/admin/",
     "SITE_LOGO": "/static/adminpanel/velo.svg",
     "SITE_FAVICONS": [
@@ -220,3 +224,6 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+
+# explicit — Django's default is True since 3.0, but the probe should see intent
+SECURE_CONTENT_TYPE_NOSNIFF = True

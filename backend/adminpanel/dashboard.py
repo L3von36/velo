@@ -90,7 +90,9 @@ def _money(v):
 
 
 def _revenue_series(days: int) -> list[dict]:
-    """Daily bars for 7/14/30, ISO-week bars for 90. Zero-filled, EAT days."""
+    """Daily bars for 7/14/30, ISO-week bars for 90. Zero-filled, EAT days.
+    v2.8.0: refunded sales are excluded from revenue totals (a refund is not
+    revenue) — the join condition carries the status filter."""
     if days <= 30:
         return _rows(f"""
             with days as (
@@ -105,6 +107,7 @@ def _revenue_series(days: int) -> list[dict]:
             from days
             left join public.sales s
               on (s.created_at at time zone {EAT!r})::date = days.d
+             and s.status <> 'refunded'
             group by days.d order by days.d""")
     # 90 days -> 13 ISO weeks (current week included, zero-filled)
     return _rows(f"""
@@ -122,12 +125,15 @@ def _revenue_series(days: int) -> list[dict]:
         left join public.sales s
           on date_trunc('week',
              (s.created_at at time zone {EAT!r})::date) = weeks.w
+         and s.status <> 'refunded'
         group by weeks.w order by weeks.w""")
 
 
-def _growth() -> dict:
-    """MRR / churn / activation — the owner's commercial lens."""
-    by_plan = _rows("""
+def _growth(by_plan=None) -> dict:
+    """MRR / churn / activation — the owner's commercial lens.
+    by_plan can be shared from kpis() to save a duplicate round-trip."""
+    if by_plan is None:
+        by_plan = _rows("""
         select plan, count(*) as shops from public.shops
         where not is_test group by plan""")
     shops_total = sum(r["shops"] for r in by_plan)
@@ -137,24 +143,29 @@ def _growth() -> dict:
 
     # Churn: tenants older than 30d with zero sales in the last 30d.
     # Test tenants are excluded — demo shops are not churn evidence.
-    mature = _one("""
-        select count(*) from public.shops
-        where created_at < now() - interval '30 days' and not is_test""") or 0
-    churned = _one("""
-        select count(*) from public.shops s
-        where s.created_at < now() - interval '30 days'
-          and not s.is_test
-          and not exists (
-            select 1 from public.sales x
-            where x.shop_id = s.id
-              and x.created_at > now() - interval '30 days')""") or 0
-    active_30d = _one("""
-        select count(distinct shop_id) from public.sales
-        where created_at > now() - interval '30 days'""") or 0
-    ever_active = _one("""
-        select count(distinct shop_id) from public.sales""") or 0
-    suspended = _one(
-        "select count(*) from public.shops where is_suspended") or 0
+    # v2.8.0: the five counters ride in one round-trip.
+    row = (_rows("""
+        select
+          (select count(*) from public.shops
+            where created_at < now() - interval '30 days'
+              and not is_test) as mature,
+          (select count(*) from public.shops s
+            where s.created_at < now() - interval '30 days'
+              and not s.is_test
+              and not exists (
+                select 1 from public.sales x
+                where x.shop_id = s.id
+                  and x.created_at > now() - interval '30 days')) as churned,
+          (select count(distinct shop_id) from public.sales
+            where created_at > now() - interval '30 days') as active_30d,
+          (select count(distinct shop_id) from public.sales) as ever_active,
+          (select count(*) from public.shops where is_suspended) as suspended
+    """) or [{}])[0]
+    mature = int(row.get("mature") or 0)
+    churned = int(row.get("churned") or 0)
+    active_30d = int(row.get("active_30d") or 0)
+    ever_active = int(row.get("ever_active") or 0)
+    suspended = int(row.get("suspended") or 0)
 
     return {
         "mrr": _money(mrr),
@@ -192,40 +203,44 @@ def kpis(period: int = 14) -> dict:
     if period not in PERIODS:
         period = 14
 
-    cards = {
-        "shops_total": _one("select count(*) from public.shops"),
-        "shops_new_30d": _one(
-            "select count(*) from public.shops where created_at > now() - interval '30 days'"),
-        "shops_suspended": _one(
-            "select count(*) from public.shops where is_suspended"),
-        "users_total": _one("select count(*) from auth_users"),
-        "users_active_7d": _one(
-            "select count(*) from auth_users where last_sign_in_at > now() - interval '7 days'"),
-        "items_total": _one("select count(*) from public.items"),
-        "sales_all_count": _one("select count(*) from public.sales"),
-        "sales_all_sum": _money(_one("select coalesce(sum(total),0) from public.sales")),
-        "sales_today_count": _one(
-            "select count(*) from public.sales "
-            "where (created_at at time zone 'Africa/Addis_Ababa')::date "
-            "= (now() at time zone 'Africa/Addis_Ababa')::date"),
-        "sales_today_sum": _money(_one(
-            "select coalesce(sum(total),0) from public.sales "
-            "where (created_at at time zone 'Africa/Addis_Ababa')::date "
-            "= (now() at time zone 'Africa/Addis_Ababa')::date")),
-        "sales_7d_sum": _money(_one(
-            "select coalesce(sum(total),0) from public.sales "
-            "where created_at > now() - interval '7 days'")),
-        "sales_7d_count": _one(
-            "select count(*) from public.sales "
-            "where created_at > now() - interval '7 days'"),
-        "expenses_7d_sum": _money(_one(
-            "select coalesce(sum(amount),0) from public.expenses "
-            "where created_at > now() - interval '7 days'")),
-    }
+    # v2.8.0: the 13 KPI counters ride in ONE round-trip (the console used to
+    # spend 13 sequential pooler trips here — the page's biggest latency).
+    # Money sums exclude refunded sales (a refund is not revenue); counts
+    # remain record counts.
+    cards_row = (_rows("""
+        select
+          (select count(*) from public.shops) as shops_total,
+          (select count(*) from public.shops
+            where created_at > now() - interval '30 days') as shops_new_30d,
+          (select count(*) from public.shops where is_suspended) as shops_suspended,
+          (select count(*) from auth_users) as users_total,
+          (select count(*) from auth_users
+            where last_sign_in_at > now() - interval '7 days') as users_active_7d,
+          (select count(*) from public.items) as items_total,
+          (select count(*) from public.sales) as sales_all_count,
+          (select coalesce(sum(total), 0) from public.sales
+            where status <> 'refunded') as sales_all_sum,
+          (select count(*) from public.sales
+            where (created_at at time zone 'Africa/Addis_Ababa')::date
+                = (now() at time zone 'Africa/Addis_Ababa')::date) as sales_today_count,
+          (select coalesce(sum(total), 0) from public.sales
+            where status <> 'refunded'
+              and (created_at at time zone 'Africa/Addis_Ababa')::date
+                = (now() at time zone 'Africa/Addis_Ababa')::date) as sales_today_sum,
+          (select coalesce(sum(total), 0) from public.sales
+            where status <> 'refunded'
+              and created_at > now() - interval '7 days') as sales_7d_sum,
+          (select count(*) from public.sales
+            where created_at > now() - interval '7 days') as sales_7d_count,
+          (select coalesce(sum(amount), 0) from public.expenses
+            where created_at > now() - interval '7 days') as expenses_7d_sum
+    """) or [{}])[0]
+    cards = {k: (v if not k.endswith(("_sum",)) else _money(v))
+             for k, v in cards_row.items()}
 
     recent_shops = _rows("""
         select s.id, s.name, s.business_type, s.plan, s.phone,
-               s.is_suspended, s.created_at
+               s.is_suspended, s.is_test, s.created_at
         from public.shops s order by s.created_at desc limit 8""")
 
     recent_sales = _rows("""
@@ -244,13 +259,14 @@ def kpis(period: int = 14) -> dict:
 
     series = _revenue_series(period)
 
-    # Busiest tenants over the last 30 days.
+    # Busiest tenants over the last 30 days (refunds excluded from totals).
     top_shops = _rows("""
         select sh.id, sh.name, sh.plan, count(s.id) as cnt,
                coalesce(sum(s.total), 0) as total
         from public.sales s
         join public.shops sh on sh.id = s.shop_id
         where s.created_at > now() - interval '30 days'
+          and s.status <> 'refunded'
         group by sh.id, sh.name, sh.plan
         order by total desc limit 5""")
 
@@ -260,7 +276,10 @@ def kpis(period: int = 14) -> dict:
             "recent_sales": recent_sales, "by_type": by_type,
             "by_plan": by_plan, "series": series,
             "period": period, "periods": PERIODS,
-            "growth": _growth(), "tenants": _tenant_health(),
+            "growth": _growth(by_plan=_rows("""
+                    select plan, count(*) as shops from public.shops
+                    where not is_test group by plan""")),
+            "tenants": _tenant_health(),
             "top_shops": top_shops, "max_daily": max_daily,
             "radar": money_radar(),
             "funnel": _funnel(), "cohorts": _cohorts(),
@@ -280,18 +299,23 @@ with m as (
     select sh.id,
            coalesce((select sum(s.total) from public.sales s
                       where s.shop_id = sh.id
+                        and s.status <> 'refunded'
                         and s.created_at > now() - interval '30 days'), 0) as rev30,
            coalesce((select sum(s.total) from public.sales s
                       where s.shop_id = sh.id
+                        and s.status <> 'refunded'
                         and s.created_at <= now() - interval '30 days'
                         and s.created_at > now() - interval '60 days'), 0) as rev_prev30,
            coalesce((select count(s.id) from public.sales s
                       where s.shop_id = sh.id
+                        and s.status <> 'refunded'
                         and s.created_at > now() - interval '30 days'), 0) as cnt30,
            coalesce((select sum(s.total) from public.sales s
-                      where s.shop_id = sh.id), 0) as rev_life,
+                      where s.shop_id = sh.id
+                        and s.status <> 'refunded'), 0) as rev_life,
            (select max(s.created_at) from public.sales s
-             where s.shop_id = sh.id) as last_sale,
+             where s.shop_id = sh.id
+               and s.status <> 'refunded') as last_sale,
            (select count(*) from public.items i where i.shop_id = sh.id) as items_cnt,
            (select count(*) from public.staff st
              where st.shop_id = sh.id and st.user_id is not null) as users_cnt,
@@ -320,14 +344,22 @@ def _classify(row: dict, median30: float) -> dict:
     items = int(row["items_cnt"] or 0)
     users = int(row["users_cnt"] or 0)
     days_silent = int(row["days_silent"])
+    age_days = int(row.get("age_days") or 0)
 
     # -- health score (0..100) --------------------------------------------
-    # recency   /40 : linear decay, 0 days silent = full marks, 45d = zero
+    # recency   /40 : linear decay, 0 days silent = full marks, 45d = zero.
+    #                 v2.8.0: a tenant that has NEVER sold is judged on its
+    #                 age (14-day onboarding ramp), not on silence — a
+    #                 day-one signup is "new", not "critical".
     # momentum  /30 : rev30 vs rev_prev30 ratio; new activity counts as 30
     # depth     /20 : catalog size + linked app users (proxy for commitment)
     # tier      /10 : paying plans score full marks
-    score_rec = max(0.0, 40 - min(days_silent, 45) * (40 / 45.0)) \
-        if days_silent < 900 else 0.0
+    if row.get("last_sale") is None:
+        score_rec = max(0.0, 40 - min(age_days, 14) * (40 / 14.0))
+    elif days_silent < 900:
+        score_rec = max(0.0, 40 - min(days_silent, 45) * (40 / 45.0))
+    else:
+        score_rec = 0.0
     if prev30 > 0:
         ratio = rev30 / prev30
         score_mom = 30.0 if ratio >= 1.0 else max(5.0, 30.0 * ratio)
@@ -449,15 +481,18 @@ def _heartbeat() -> dict:
              and created_at <= now() - interval '24 hours'
              and created_at > now() - interval '48 hours') as prev24,
           (select count(*) from public.shops
-            where not is_suspended and not is_test) as shops_total""") or [{}])[0]
+            where not is_suspended and not is_test) as shops_total,
+          (select (now() at time zone 'Africa/Addis_Ababa')::date) as today
+    """) or [{}])[0]
 
     # Consecutive sale-day streak (EAT days), ending at today or yesterday.
     days = [r["day"] for r in _rows("""
         select distinct (created_at at time zone 'Africa/Addis_Ababa')::date as day
         from public.sales where status = 'completed'
         order by day desc limit 60""")]
-    today = _one("""
-        select (now() at time zone 'Africa/Addis_Ababa')::date""")
+    today = win.get("today")
+    if today is None:  # older callers / mocks may not carry the scalar
+        today = _one("select (now() at time zone 'Africa/Addis_Ababa')::date")
     streak, streak_at_risk = _sale_streak(days, today)
 
     n24 = int(win.get("n24") or 0)
@@ -533,6 +568,7 @@ def money_radar() -> dict:
                end as d
         from public.shops sh
         left join public.sales s on s.shop_id = sh.id
+             and s.status <> 'refunded'
         group by sh.id""")}
     for r in rows:
         r["days_silent"] = silence.get(r["id"], 999)
@@ -766,24 +802,27 @@ def tenant_360(shop_id: int) -> dict | None:
         left join public.sales s
           on date_trunc('week', (s.created_at at time zone 'Africa/Addis_Ababa')::date)
              = weeks.w
+         and s.shop_id = %s
+         and s.status <> 'refunded'
         where weeks.w >= date_trunc('week',
               (select created_at from public.shops where id = %s))
-          and s.shop_id = %s
         group by weeks.w order by weeks.w""", [shop_id, shop_id])
 
     mix = _rows("""
         select method, count(*) as cnt, coalesce(sum(total), 0) as total
         from public.sales
-        where shop_id = %s and created_at > now() - interval '30 days'
+        where shop_id = %s and status <> 'refunded'
+          and created_at > now() - interval '30 days'
         group by method order by total desc""", [shop_id])
 
     top_items = _rows("""
-        select name_snapshot,
-               sum(qty) as qty,
-               coalesce(sum(line_total), 0) as revenue
-        from public.sale_items
-        where shop_id = %s
-        group by name_snapshot
+        select si.name_snapshot,
+               sum(si.qty) as qty,
+               coalesce(sum(si.line_total), 0) as revenue
+        from public.sale_items si
+        join public.sales s on s.id = si.sale_id
+        where si.shop_id = %s and s.status <> 'refunded'
+        group by si.name_snapshot
         order by revenue desc nulls last limit 8""", [shop_id])
 
     staff = _rows("""

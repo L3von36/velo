@@ -32,6 +32,7 @@ their own back-office):
 import csv
 
 from django.contrib import admin, messages
+from django.contrib.auth.signals import user_login_failed
 from django.db import connection, IntegrityError, transaction
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
@@ -42,6 +43,7 @@ from unfold.contrib.filters.admin import RangeNumericFilter, RelatedDropdownFilt
 from unfold.sites import UnfoldAdminSite
 
 from . import models
+from . import throttle
 from .dashboard import (
     PERIODS,
     PLAN_PRICES_ETB,
@@ -74,6 +76,21 @@ class VeloAdminSite(UnfoldAdminSite):
     site_title = "Velo Admin"
     index_title = "Platform overview"
     index_template = "admin/velo_index.html"
+
+    def login(self, request, extra_context=None):
+        """v2.8.0 — brute-force gate: after 5 failed attempts for the same
+        username or source IP inside 15 minutes, further attempts (even with
+        the right password) are bounced for the lockout window. Failures are
+        recorded by the user_login_failed signal below."""
+        if request.method == "POST":
+            username = request.POST.get("username") or ""
+            if throttle.is_locked(username, _client_ip(request)):
+                messages.add_message(
+                    request, messages.ERROR,
+                    "Too many failed sign-in attempts — try again in "
+                    f"{throttle.LOCKOUT_MINUTES} minutes.")
+                return HttpResponseRedirect("/admin/login/")
+        return super().login(request, extra_context=extra_context)
 
     def index(self, request, extra_context=None):
         try:
@@ -238,6 +255,20 @@ def _client_ip(request) -> str:
     """Best-effort client IP for the audit trail (Vercel proxies set XFF)."""
     xff = (request.META.get("HTTP_X_FORWARDED_FOR") or "").split(",")[0].strip()
     return xff or request.META.get("REMOTE_ADDR", "")
+
+
+def _record_login_failure(sender, credentials=None, request=None, **kwargs):
+    """v2.8.0 — feed the brute-force throttle from Django's own signal so
+    every failed authentication path is counted (username + source IP)."""
+    try:
+        throttle.record_failure(
+            (credentials or {}).get("username") or "",
+            _client_ip(request) if request is not None else "")
+    except Exception:
+        pass
+
+
+user_login_failed.connect(_record_login_failure, weak=False)
 
 
 def _audit(request, action: str, target: str, details: str = "") -> None:
@@ -561,7 +592,7 @@ class AdminAuthUserAdmin(TransactionalAdmin):
 
     allow_single_delete = False  # never delete auth accounts from the console
 
-    list_display = ("phone", "email", "shop_name", "created_at",
+    list_display = ("phone_display", "email", "shop_name", "created_at",
                     "last_sign_in_at", "ban_badge")
     search_fields = ("phone", "email")
     search_help_text = "Search by phone or email"
@@ -574,6 +605,20 @@ class AdminAuthUserAdmin(TransactionalAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         return self.readonly_fields
+
+    @admin.display(description="Phone", ordering="phone")
+    def phone_display(self, obj):
+        """v2.8.0 — the Phone column used to render '-' for every account:
+        the real number hides inside <phone>@velo.app emails. Fall back to
+        the local part when it looks like a phone number."""
+        if obj.phone:
+            return obj.phone
+        email = obj.email or ""
+        if email.endswith("@velo.app"):
+            local = email.split("@")[0]
+            if local.isdigit() and len(local) >= 9:
+                return local
+        return "—"
 
     @admin.display(description="Status")
     def ban_badge(self, obj):

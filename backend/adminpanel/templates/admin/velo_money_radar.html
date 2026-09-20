@@ -169,7 +169,7 @@
         {% for t in radar.tenants %}
         <tr>
           <td><a class="vp-link-strong" href="/admin/tenant/{{ t.id }}/">{{ t.name }}</a>
-              {% if t.is_new %}<span class="vp-tag vp-tag-green">new</span>{% endif %}</td>
+              {% if t.is_new and not t.is_test %}<span class="vp-tag vp-tag-green">new</span>{% endif %}</td>
           <td><span class="vp-tag">{{ t.business_type }}</span></td>
           <td><span class="vp-tag {% if t.price_now > 0 %}vp-tag-green{% endif %}">{{ t.plan }}</span></td>
           <td class="vp-num">{{ t.rev30|floatformat:0 }}</td>
@@ -190,10 +190,18 @@
             {% else %}<span class="vp-pill vp-pill-suspended">critical</span>{% endif %}
           </td>
           <td>
+            {# v2.8.0: test tenants are stat-excluded; health renders muted grey #}
+            {% if t.is_test %}
+            <div class="vp-health-line">
+              <span class="vp-health-score" title="test tenant — excluded from health stats">{{ t.health }}</span>
+              <div class="vp-progress"><div class="vp-progress-bar" style="width: {{ t.health }}%"></div></div>
+            </div>
+            {% else %}
             <div class="vp-health-line">
               <span class="vp-health-score vp-health-{{ t.band }}">{{ t.health }}</span>
               <div class="vp-progress"><div class="vp-progress-bar" style="width: {{ t.health }}%"></div></div>
             </div>
+            {% endif %}
           </td>
         </tr>
         {% empty %}

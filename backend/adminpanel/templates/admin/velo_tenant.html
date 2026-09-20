@@ -29,6 +29,12 @@
   <div class="vp-cards vp-cards-tight">
     <div class="vp-card vp-card-accent">
       <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-green">trending_up</span>Revenue · 30 days</div>
+      {% if t360.t.rev30 == 0 %}
+      <div class="vp-v vp-v-zero">ETB {{ t360.t.rev30|floatformat:0 }}</div>
+      <div class="vp-s vp-s-zero">
+        {% if t360.t.prev30 > 0 %}▼ from ETB {{ t360.t.prev30|floatformat:0 }} prior 30d{% else %}first real month{% endif %}
+      </div>
+      {% else %}
       <div class="vp-v">ETB {{ t360.t.rev30|floatformat:0 }}</div>
       <div class="vp-s">
         {% if t360.t.prev30 > 0 %}
@@ -36,21 +42,28 @@
           ETB {{ t360.t.prev30|floatformat:0 }} prior 30d
         {% else %}first real month{% endif %}
       </div>
+      {% endif %}
     </div>
     <div class="vp-card">
       <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-blue">receipt_long</span>Sales · 30 days</div>
       <div class="vp-v">{{ t360.t.cnt30 }}</div>
-      <div class="vp-s">avg ticket <b>ETB {% widthratio t360.t.rev30 t360.t.cnt30 1 %}</b>{% if t360.t.cnt30 == 0 %}—{% endif %}</div>
+      {# v2.8.0: no more "ETB 0—" when the tenant has no sales yet #}
+      {% if t360.t.cnt30 == 0 %}
+      <div class="vp-s vp-s-zero">no sales yet — avg ticket appears with the first receipt</div>
+      {% else %}
+      <div class="vp-s">avg ticket <b>ETB {% widthratio t360.t.rev30 t360.t.cnt30 1 %}</b></div>
+      {% endif %}
     </div>
     <div class="vp-card">
       <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-violet">savings</span>Lifetime revenue</div>
-      <div class="vp-v">ETB {{ t360.t.rev_life|floatformat:0 }}</div>
+      {% if t360.t.rev_life == 0 %}<div class="vp-v vp-v-zero">ETB 0</div>{% else %}<div class="vp-v">ETB {{ t360.t.rev_life|floatformat:0 }}</div>{% endif %}
       <div class="vp-s">joined {{ t360.shop.created_at|date:"M d Y" }}</div>
     </div>
     <div class="vp-card">
       <div class="vp-k"><span class="material-symbols-outlined vp-ic ic-gold">schedule</span>Last sale</div>
-      <div class="vp-v">{{ t360.t.silent_text }}</div>
-      <div class="vp-s"><span class="vp-stale vp-stale-{{ t360.t.silent_band }}">{{ t360.t.silent_text }}</span> · silent {{ t360.t.days_silent }}d</div>
+      {# v2.8.0: the value IS the staleness pill; no 39h-ago duplication, no 999d sentinel #}
+      <div class="vp-v"><span class="vp-stale vp-stale-{{ t360.t.silent_band }}">{{ t360.t.silent_text }}</span></div>
+      <div class="vp-s">{% if t360.t.silent_text == "never sold" %}no sales on record yet — watch this space{% else %}silent {{ t360.t.days_silent }}d · last purchase {{ t360.t.last_sale|date:"M d, H:i" }}{% endif %}</div>
     </div>
   </div>
 
@@ -108,7 +121,7 @@
           {% for i in t360.top_items %}
           <tr>
             <td>{{ i.name_snapshot }}</td>
-            <td class="vp-num">{{ i.qty }}</td>
+            <td class="vp-num">{{ i.qty|floatformat:-3 }}</td>
             <td class="vp-num"><b>ETB {{ i.revenue|floatformat:0 }}</b></td>
           </tr>
           {% endfor %}

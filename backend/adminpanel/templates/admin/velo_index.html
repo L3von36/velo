@@ -300,7 +300,8 @@
         <tbody>
           {% for s in kpi.recent_shops %}
           <tr>
-            <td><a class="vp-link-strong" href="/admin/tenant/{{ s.id }}/">{{ s.name }}</a></td>
+            <td><a class="vp-link-strong" href="/admin/tenant/{{ s.id }}/">{{ s.name }}</a>
+                {% if s.is_test %}<span class="vp-pill vp-pill-test">test</span>{% endif %}</td>
             <td><span class="vp-tag">{{ s.business_type }}</span></td>
             <td><span class="vp-tag vp-tag-green">{{ s.plan }}</span></td>
             <td>{% if s.is_suspended %}<span class="vp-pill vp-pill-suspended">suspended</span>{% else %}<span class="vp-pill vp-pill-active">active</span>{% endif %}</td>
